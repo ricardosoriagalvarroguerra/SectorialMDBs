@@ -1,0 +1,23 @@
+# Core Streamlit and Data Processing
+streamlit>=1.28.0
+pandas>=2.0.0
+numpy>=1.24.0
+
+# Data Format Support (Parquet)
+pyarrow>=10.0.0
+
+# Visualization Libraries
+plotly>=5.15.0
+altair>=5.0.0
+
+# Additional Data Processing
+python-dateutil>=2.8.0
+pytz>=2023.3
+
+# Optional: For better performance with large datasets
+# fastparquet>=0.8.0
+
+# Development and Testing (optional for production)
+# pytest>=7.0.0
+# black>=22.0.0
+# flake8>=5.0.0 
