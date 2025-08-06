@@ -882,7 +882,7 @@ def main():
         ["Home", "Ejecución", "Transacciones", "Sectores", "Mercado", "Ticket"]
     )
     
-    # Filtros desplegables en el sidebar (solo para la página de Transacciones - subpágina Financiadores)
+    # Filtros desplegables en el sidebar para la página de Transacciones
     if page == "Transacciones" and 'bdd_global' in st.session_state:
         # Crear un selectbox para elegir la subpágina activa
         subpage_active = st.sidebar.selectbox(
@@ -892,8 +892,8 @@ def main():
             key="transacciones_subpage_select"
         )
         st.session_state['subpage_active'] = subpage_active
-        
-        # Solo mostrar filtros si estamos en la subpágina de Financiadores
+
+        # Mostrar filtros según la subpágina seleccionada
         if subpage_active == "Financiadores":
             st.sidebar.markdown("---")
             st.sidebar.subheader("🔍 Filtros (Financiadores)")
@@ -984,6 +984,21 @@ def main():
                         key="transacciones_macrosector_select"
                     )
                     st.session_state['selected_macrosector'] = selected_macrosector
+
+        elif subpage_active == "Países":
+            st.sidebar.markdown("---")
+            st.sidebar.subheader("🔍 Filtros (Países)")
+
+            # Slider de años
+            selected_years = st.sidebar.slider(
+                "📅 Rango de Años:",
+                min_value=2010,
+                max_value=2024,
+                value=(2010, 2024),
+                step=1,
+                key="transacciones_paises_years_slider",
+            )
+            st.session_state['selected_years'] = selected_years
     
     # Filtros desplegables en el sidebar para la página de Ticket
     if page == "Ticket" and 'bdd_global' in st.session_state:
