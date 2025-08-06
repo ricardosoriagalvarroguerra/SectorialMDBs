@@ -593,14 +593,19 @@ def sectores_page():
         df['transactiondate_isodate'] = pd.to_datetime(df['transactiondate_isodate'])
 
     prefixes = sorted(df['prefix'].dropna().unique())
-    selected_prefixes = st.sidebar.multiselect(
-        "📁 Seleccionar Prefix:",
-        options=prefixes,
-        default=prefixes,
-        key="sectores_prefix_multiselect"
+    institution_options = ["Seleccionar todo"] + prefixes
+    selected_institutions = st.sidebar.multiselect(
+        "🏛️ Institución:",
+        options=institution_options,
+        default=["Seleccionar todo"],
+        key="sectores_institucion_multiselect"
     )
-    if selected_prefixes:
-        df = df[df['prefix'].isin(selected_prefixes)]
+    if "Seleccionar todo" in selected_institutions or not selected_institutions:
+        selected_institutions = prefixes
+    else:
+        selected_institutions = [inst for inst in selected_institutions if inst != "Seleccionar todo"]
+    if selected_institutions:
+        df = df[df['prefix'].isin(selected_institutions)]
 
     if 'modality' in df.columns:
         modalities = sorted(df['modality'].dropna().astype(str).unique())
@@ -632,42 +637,39 @@ def sectores_page():
             df = df[df['recipientcountry_codename'] == selected_country]
 
     if 'transactiondate_isodate' in df.columns and not df['transactiondate_isodate'].isna().all():
-        # Convert to datetime for consistent slider input
         df['transactiondate_isodate'] = pd.to_datetime(
             df['transactiondate_isodate'], errors='coerce'
         )
-        valid_dates = df['transactiondate_isodate'].dropna()
-        if not valid_dates.empty:
-            min_date = valid_dates.min().date()
-            max_date = valid_dates.max().date()
-            start_date, end_date = st.sidebar.slider(
-                "📅 Rango de Fechas:",
-                min_value=min_date,
-                max_value=max_date,
-                value=(min_date, max_date),
-                format="YYYY-MM-DD",
-                key="sectores_date_slider"
-            )
-            df = df[
-                (df['transactiondate_isodate'] >= pd.to_datetime(start_date))
-                & (df['transactiondate_isodate'] <= pd.to_datetime(end_date))
-            ]
+        df = df.dropna(subset=['transactiondate_isodate'])
+        start_year, end_year = st.sidebar.slider(
+            "📅 Rango de Años:",
+            min_value=2010,
+            max_value=2024,
+            value=(2010, 2024),
+            step=1,
+            key="sectores_year_slider"
+        )
+        df = df[
+            (df['transactiondate_isodate'].dt.year >= start_year)
+            & (df['transactiondate_isodate'].dt.year <= end_year)
+        ]
 
 
-    sector_data = df.groupby('sector_codename')['value_usd'].sum().reset_index()
-    sector_data = sector_data.sort_values('value_usd', ascending=True)
+    df['macrosector'] = df['sector_codename'].apply(get_macrosector)
+    macrosector_data = df.groupby('macrosector')['value_usd'].sum().reset_index()
+    macrosector_data = macrosector_data.sort_values('value_usd', ascending=True)
 
-    if sector_data.empty:
+    if macrosector_data.empty:
         st.warning("No hay datos disponibles para los filtros seleccionados.")
         return
 
     fig = px.bar(
-        sector_data,
+        macrosector_data,
         x='value_usd',
-        y='sector_codename',
+        y='macrosector',
         orientation='h',
-        labels={'value_usd': 'Valor USD', 'sector_codename': 'Sector'},
-        title='Acumulado de Valor USD por Sector'
+        labels={'value_usd': 'Valor USD', 'macrosector': 'Macrosector'},
+        title='Acumulado de Valor USD por Macrosector'
     )
     st.plotly_chart(fig, use_container_width=True)
 
