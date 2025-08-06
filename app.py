@@ -314,15 +314,20 @@ def transacciones_page():
                     )
                     
                     # Actualizar ejes con rango dinámico basado en el máximo
-                    for i in range(1, 3):
-                        for j in range(1, 3):
-                            fig_bars.update_xaxes(title_text="Año", row=i, col=j, showgrid=False)
-                            fig_bars.update_yaxes(
-                                title_text="Valor USD (Millones)", 
-                                row=i, col=j, 
-                                showgrid=False,
-                                range=[0, max_value_millions * 1.1]  # 10% de margen arriba
-                            )
+                    for idx, (row, col) in enumerate(positions):
+                        inst = instituciones_ordenadas[idx]
+
+                        # Determinar títulos de ejes según la institución
+                        x_title = "Año" if inst in ["fonplata", "caf"] else None
+                        y_title = "Valor USD (Millones)" if inst in ["iadb", "fonplata"] else None
+
+                        fig_bars.update_xaxes(title_text=x_title, row=row, col=col, showgrid=False)
+                        fig_bars.update_yaxes(
+                            title_text=y_title,
+                            row=row, col=col,
+                            showgrid=False,
+                            range=[0, max_value_millions * 1.1]  # 10% de margen arriba
+                        )
                     
                     st.plotly_chart(fig_bars, use_container_width=True)
                     
