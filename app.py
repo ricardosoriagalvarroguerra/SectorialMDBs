@@ -632,17 +632,27 @@ def sectores_page():
             df = df[df['recipientcountry_codename'] == selected_country]
 
     if 'transactiondate_isodate' in df.columns and not df['transactiondate_isodate'].isna().all():
-        min_date = df['transactiondate_isodate'].min()
-        max_date = df['transactiondate_isodate'].max()
-        start_date, end_date = st.sidebar.slider(
-            "📅 Rango de Fechas:",
-            min_value=min_date,
-            max_value=max_date,
-            value=(min_date, max_date),
-            format="YYYY-MM-DD",
-            key="sectores_date_slider"
+        # Convert to datetime for consistent slider input
+        df['transactiondate_isodate'] = pd.to_datetime(
+            df['transactiondate_isodate'], errors='coerce'
         )
-        df = df[(df['transactiondate_isodate'] >= start_date) & (df['transactiondate_isodate'] <= end_date)]
+        valid_dates = df['transactiondate_isodate'].dropna()
+        if not valid_dates.empty:
+            min_date = valid_dates.min().date()
+            max_date = valid_dates.max().date()
+            start_date, end_date = st.sidebar.slider(
+                "📅 Rango de Fechas:",
+                min_value=min_date,
+                max_value=max_date,
+                value=(min_date, max_date),
+                format="YYYY-MM-DD",
+                key="sectores_date_slider"
+            )
+            df = df[
+                (df['transactiondate_isodate'] >= pd.to_datetime(start_date))
+                & (df['transactiondate_isodate'] <= pd.to_datetime(end_date))
+            ]
+
 
     sector_data = df.groupby('sector_codename')['value_usd'].sum().reset_index()
     sector_data = sector_data.sort_values('value_usd', ascending=True)
