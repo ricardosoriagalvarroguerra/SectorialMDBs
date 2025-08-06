@@ -798,51 +798,6 @@ def ticket_page():
                     fig_boxes.update_yaxes(showgrid=False)
                     
                     st.plotly_chart(fig_boxes, use_container_width=True)
-                    
-                    # Mostrar estadísticas descriptivas para cada institución
-                    st.subheader("📋 Estadísticas Descriptivas por Institución")
-                    
-                    # Crear tabla de estadísticas
-                    stats_data = []
-                    for inst in instituciones_ordenadas:
-                        inst_data = df_filtered[df_filtered['prefix'] == inst]
-                        if len(inst_data) > 0:
-                            stats = {
-                                'Institución': inst.upper(),
-                                'Observaciones': len(inst_data),
-                                'Media (M USD)': inst_data['value_usd_millions'].mean(),
-                                'Mediana (M USD)': inst_data['value_usd_millions'].median(),
-                                'Desv. Est. (M USD)': inst_data['value_usd_millions'].std(),
-                                'Mínimo (M USD)': inst_data['value_usd_millions'].min(),
-                                'Máximo (M USD)': inst_data['value_usd_millions'].max(),
-                                'Q1 (M USD)': inst_data['value_usd_millions'].quantile(0.25),
-                                'Q3 (M USD)': inst_data['value_usd_millions'].quantile(0.75)
-                            }
-                            stats_data.append(stats)
-                    
-                    if stats_data:
-                        stats_df = pd.DataFrame(stats_data)
-                        # Redondear valores numéricos
-                        numeric_columns = ['Media (M USD)', 'Mediana (M USD)', 'Desv. Est. (M USD)', 
-                                         'Mínimo (M USD)', 'Máximo (M USD)', 'Q1 (M USD)', 'Q3 (M USD)']
-                        for col in numeric_columns:
-                            if col in stats_df.columns:
-                                stats_df[col] = stats_df[col].round(2)
-                        
-                        st.dataframe(stats_df, use_container_width=True)
-                        
-                        # Mostrar información adicional
-                        st.markdown("---")
-                        st.subheader("ℹ️ Información sobre los Box Plots")
-                        st.write("""
-                        - **Caja (Box):** Representa el rango intercuartílico (Q1 a Q3)
-                        - **Línea central:** Mediana de los datos
-                        - **Bigotes (Whiskers):** Extensión hasta 1.5 veces el rango intercuartílico
-                        - **Puntos:** Valores atípicos (outliers)
-                        - **Observaciones:** Número total de transacciones por institución
-                        """)
-                    else:
-                        st.warning("No hay datos suficientes para generar estadísticas.")
                 else:
                     st.warning("No hay datos disponibles para las instituciones seleccionadas.")
             else:
