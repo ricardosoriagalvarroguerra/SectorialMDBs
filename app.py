@@ -574,90 +574,96 @@ def transacciones_page():
 def sectores_page():
     st.title("Sectores")
     st.markdown("---")
-    
-    st.header("Análisis por Sectores")
-    st.write("Esta página mostrará análisis desglosados por sectores económicos y macrosectores.")
-    
-    # Mostrar información sobre macrosectores
-    st.subheader("🏗️ Macrosectores Disponibles")
-    
-    # Crear tabs para cada macrosector
-    macrosector_tabs = st.tabs(list(macrosectores_dict.keys()))
-    
-    for i, (macrosector, sectors) in enumerate(macrosectores_dict.items()):
-        with macrosector_tabs[i]:
-            st.write(f"**{macrosector}**")
-            st.write(f"Total de sectores: {len(sectors)}")
-            
-            # Mostrar sectores en columnas para mejor visualización
-            cols = st.columns(2)
-            for j, sector in enumerate(sectors):
-                col_idx = j % 2
-                with cols[col_idx]:
-                    st.write(f"• {sector}")
-    
-    # Análisis de datos si están disponibles
-    if 'bdd_global' in st.session_state:
-        st.markdown("---")
-        st.subheader("📊 Análisis de Datos por Macrosector")
-        
-        df = st.session_state['bdd_global']
-        if 'sector_codename' in df.columns:
-            # Agregar columna de macrosector al dataframe
-            df_with_macrosector = df.copy()
-            df_with_macrosector['macrosector'] = df_with_macrosector['sector_codename'].apply(get_macrosector)
-            
-            # Filtrar solo transacciones de tipo "Outgoing Commitment"
-            outgoing_commitments = df_with_macrosector[df_with_macrosector['transactiontype_codename'] == 'Outgoing Commitment'].copy()
-            
-            if len(outgoing_commitments) > 0:
-                # Convertir la columna de fecha
-                outgoing_commitments['transactiondate_isodate'] = pd.to_datetime(outgoing_commitments['transactiondate_isodate'])
-                
-                # Filtrar por años 2010-2024
-                outgoing_commitments = outgoing_commitments[
-                    (outgoing_commitments['transactiondate_isodate'].dt.year >= 2010) & 
-                    (outgoing_commitments['transactiondate_isodate'].dt.year <= 2024)
-                ]
-                
-                # Agrupar por macrosector
-                macrosector_data = outgoing_commitments.groupby('macrosector')['value_usd'].sum().reset_index()
-                macrosector_data = macrosector_data[macrosector_data['macrosector'] != "No clasificado"]
-                
-                if len(macrosector_data) > 0:
-                    # Convertir a millones para mejor visualización
-                    macrosector_data['value_usd_millions'] = macrosector_data['value_usd'] / 1000000
-                    
-                    # Gráfico de barras por macrosector
-                    fig = px.bar(
-                        macrosector_data,
-                        x='macrosector',
-                        y='value_usd_millions',
-                        title="Distribución de Outgoing Commitments por Macrosector (2010-2024)",
-                        labels={'value_usd_millions': 'Valor USD (Millones)', 'macrosector': 'Macrosector'},
-                        color='macrosector',
-                        color_discrete_sequence=px.colors.qualitative.Set3
-                    )
-                    
-                    fig.update_layout(
-                        xaxis_title="Macrosector",
-                        yaxis_title="Valor USD (Millones)",
-                        showlegend=False
-                    )
-                    
-                    st.plotly_chart(fig, use_container_width=True)
-                    
-                    # Tabla con estadísticas
-                    st.subheader("📋 Estadísticas por Macrosector")
-                    st.dataframe(macrosector_data.sort_values('value_usd_millions', ascending=False))
-                else:
-                    pass
-            else:
-                pass
-        else:
-            pass
-    else:
-        pass
+
+    if 'bdd_global' not in st.session_state:
+        st.warning("No hay datos cargados en la sesión.")
+        return
+
+    df = st.session_state['bdd_global'].copy()
+    if 'sector_codename' not in df.columns:
+        st.warning("No hay información de sectores disponible.")
+        return
+
+    if 'transactiondate_isodate' in df.columns:
+        df['transactiondate_isodate'] = pd.to_datetime(df['transactiondate_isodate'])
+
+    prefixes = sorted(df['prefix'].dropna().unique())
+    selected_prefixes = st.sidebar.multiselect(
+        "📁 Seleccionar Prefix:",
+        options=prefixes,
+        default=prefixes,
+        key="sectores_prefix_multiselect"
+    )
+    if selected_prefixes:
+        df = df[df['prefix'].isin(selected_prefixes)]
+
+    if 'modality' in df.columns:
+        modalities = sorted(df['modality'].dropna().astype(str).unique())
+        selected_modality = st.sidebar.selectbox(
+            "📋 Seleccionar Modalidad:",
+            ["Todas"] + modalities,
+            index=0,
+            key="sectores_modality_select"
+        )
+        if selected_modality != "Todas":
+            df = df[df['modality'].astype(str) == selected_modality]
+
+    selected_region = st.sidebar.selectbox(
+        "🌎 Seleccionar Región:",
+        ["Todas"] + list(regiones_dict.keys()),
+        index=0,
+        key="sectores_region_select"
+    )
+    if selected_region != "Todas" and 'recipientcountry_codename' in df.columns:
+        paises_region = regiones_dict[selected_region]
+        countries_in_region = [country for country in df['recipientcountry_codename'].dropna().astype(str).unique() if country in paises_region]
+        selected_country = st.sidebar.selectbox(
+            "🌍 Seleccionar País:",
+            ["Todos"] + sorted(countries_in_region),
+            index=0,
+            key="sectores_country_select"
+        )
+        if selected_country != "Todos":
+            df = df[df['recipientcountry_codename'] == selected_country]
+
+    if 'transactiondate_isodate' in df.columns and not df['transactiondate_isodate'].isna().all():
+        # Convert to datetime for consistent slider input
+        df['transactiondate_isodate'] = pd.to_datetime(
+            df['transactiondate_isodate'], errors='coerce'
+        )
+        valid_dates = df['transactiondate_isodate'].dropna()
+        if not valid_dates.empty:
+            min_date = valid_dates.min().date()
+            max_date = valid_dates.max().date()
+            start_date, end_date = st.sidebar.slider(
+                "📅 Rango de Fechas:",
+                min_value=min_date,
+                max_value=max_date,
+                value=(min_date, max_date),
+                format="YYYY-MM-DD",
+                key="sectores_date_slider"
+            )
+            df = df[
+                (df['transactiondate_isodate'] >= pd.to_datetime(start_date))
+                & (df['transactiondate_isodate'] <= pd.to_datetime(end_date))
+            ]
+
+    sector_data = df.groupby('sector_codename')['value_usd'].sum().reset_index()
+    sector_data = sector_data.sort_values('value_usd', ascending=True)
+
+    if sector_data.empty:
+        st.warning("No hay datos disponibles para los filtros seleccionados.")
+        return
+
+    fig = px.bar(
+        sector_data,
+        x='value_usd',
+        y='sector_codename',
+        orientation='h',
+        labels={'value_usd': 'Valor USD', 'sector_codename': 'Sector'},
+        title='Acumulado de Valor USD por Sector'
+    )
+    st.plotly_chart(fig, use_container_width=True)
 
 # Función para la página Mercado
 def mercado_page():
