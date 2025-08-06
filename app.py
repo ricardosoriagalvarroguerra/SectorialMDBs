@@ -527,17 +527,24 @@ def transacciones_page():
                                                                 'Año: %{x}<br>' +
                                                                 'Valor: $%{y:.1f}M USD<br>' +
                                                                 '<extra></extra>',
-                                                    showlegend=False
+                                                    showlegend=(pais == 'UY')
                                                 ),
                                                 row=positions[pais][0], col=positions[pais][1]
                                             )
-                        
+
                         fig.update_layout(
                             height=800,
                             title_text=f"Evolución de Outgoing Commitments por País - {visualization_type} (2010-2024)",
                             title_x=0.5,
-                            showlegend=False,
-                            barmode='stack'  # Hacer que las barras sean apiladas
+                            barmode='stack',  # Hacer que las barras sean apiladas
+                            legend=dict(
+                                orientation='v',
+                                yanchor='middle',
+                                y=0.25,
+                                xanchor='left',
+                                x=0.83,
+                                bgcolor='rgba(0,0,0,0)'
+                            )
                         )
                         
                         # Actualizar ejes para todos los subplots
@@ -554,16 +561,6 @@ def transacciones_page():
                                     fig.update_yaxes(title_text="", row=i, col=j, showgrid=False)
                         
                         st.plotly_chart(fig, use_container_width=True)
-                        
-                        # Crear leyenda debajo del gráfico de Brasil y al lado de Uruguay
-                        col1, col2, col3 = st.columns([1, 1, 1])
-                        
-                        with col3:
-                            st.markdown("**<span style='font-size: 12px;'>Leyenda:</span>**", unsafe_allow_html=True)
-                            for categoria in categorias:
-                                color_hex = colors.get(categoria, '#999999')
-                                nombre_mostrar = categoria.upper() if visualization_type == "MDBs" else categoria
-                                st.markdown(f"<div style='display: flex; align-items: center; margin-bottom: 3px;'><span style='font-size: 10px; font-weight: bold;'>{nombre_mostrar}</span><div style='width: 12px; height: 8px; background-color: {color_hex}; border: 1px solid #ccc; margin-left: 8px;'></div></div>", unsafe_allow_html=True)
                     else:
                         pass
                 else:
@@ -1122,4 +1119,4 @@ def main():
     st.sidebar.markdown("**Desarrollado con Streamlit**")
 
 if __name__ == "__main__":
-    main() 
+    main()
