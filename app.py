@@ -401,8 +401,14 @@ elif pagina == 'Plazos y Tasas':
     # Filtro Multilateral y SC2
     multilaterales = df['Multilateral'].dropna().unique()
     multilateral = st.sidebar.selectbox('Selecciona Multilateral', multilaterales)
-    sc2_options = df['SC2'].dropna().unique() if 'SC2' in df.columns else []
-    sc2 = st.sidebar.selectbox('Selecciona SC2', sc2_options) if len(sc2_options) > 0 else None
+    sc2_allowed = [
+        'Average grace period on new external commitments',
+        'Average grant element on new external debt commitments',
+        'Average interest on new external debt commitments',
+        'Average maturity on new external debt commitments',
+    ]
+    sc2_options = [opt for opt in sc2_allowed if 'SC2' in df.columns and opt in df['SC2'].dropna().unique()]
+    sc2 = st.sidebar.selectbox('Selecciona SC2', sc2_options) if sc2_options else None
     df_filtrado = df[df['Multilateral'] == multilateral]
     if sc2 is not None:
         df_filtrado = df_filtrado[df_filtrado['SC2'] == sc2]
