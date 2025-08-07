@@ -527,21 +527,21 @@ elif pagina == 'Comprometido':
         year_range = st.sidebar.slider('Rango de años', min_year, max_year, (min_year, max_year), key='comprometido_anos')
         df_comprometido = df_comprometido[(df_comprometido['Time'] >= year_range[0]) & (df_comprometido['Time'] <= year_range[1])]
     
-    # Definir colores consistentes para multilaterales (mismo que en la página de multilaterales)
+    # Definir colores consistentes para multilaterales (igual que en la página de Multilaterales)
     multilateral_colors = {
-        'BIS': '#1f77b4',      # Azul
-        'CAF': '#ff7f0e',      # Naranja
-        'EIB': '#2ca02c',      # Verde
-        'IDB': '#d62728',      # Rojo
-        'IFAD': '#9467bd',     # Púrpura
-        'IIB': '#8c564b',      # Marrón
-        'IMF': '#e377c2',      # Rosa
-        'OPEC': '#7f7f7f',     # Gris
-        'FONPLATA': '#bcbd22', # Amarillo verdoso
-        'World': '#17becf',    # Cian
-        'WB-IBRD': '#ff9896',  # Rosa claro
-        'WB-IDA': '#98df8a',   # Verde claro
-        'WB-MIGA': '#ffbb78'   # Naranja claro
+        'CAF': '#38b000',
+        'FONPLATA': '#c1121f',
+        'IDB': '#0077b6',
+        'WB-IBRD': '#023047',
+        'BIS': '#fdf0d5',
+        'WB-IDA': '#ffc300',
+        'IMF': '#e36414',
+        'EIB': '#e5e5e5',
+        'IIB': '#9d4edd',
+        'OPEC': '#ff6b35',
+        'IFAD': '#76c893',
+        'WB-MIGA': '#ffbb78',
+        'World': '#17becf'
     }
     
     # Definir países
