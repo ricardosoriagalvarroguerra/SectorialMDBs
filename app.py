@@ -86,6 +86,96 @@ def get_macrosector(sector_name):
             return macrosector
     return "No clasificado"
 
+# Función para manejar el comportamiento de multiselect con "Seleccionar todo"
+def handle_multiselect_behavior(selected_options, all_options, select_all_text="Seleccionar todo"):
+    """
+    Maneja el comportamiento de multiselect donde "Seleccionar todo" es exclusivo
+    con las opciones individuales.
+    
+    Args:
+        selected_options: Lista de opciones seleccionadas
+        all_options: Lista de todas las opciones disponibles (sin "Seleccionar todo")
+        select_all_text: Texto de la opción "Seleccionar todo"
+    
+    Returns:
+        Lista de opciones finales a usar para filtrar
+    """
+    if not selected_options:
+        return all_options
+    
+    # Si solo "Seleccionar todo" está seleccionado, retornar todas las opciones
+    if selected_options == [select_all_text]:
+        return all_options
+    
+    # Si hay opciones individuales seleccionadas (con o sin "Seleccionar todo"), 
+    # excluir "Seleccionar todo" y retornar solo las opciones individuales
+    individual_options = [opt for opt in selected_options if opt != select_all_text]
+    if individual_options:
+        return individual_options
+    
+    # Si no hay opciones individuales, retornar todas las opciones
+    return all_options
+
+def create_smart_multiselect(label, options, default_value, key, select_all_text="Seleccionar todo"):
+    """
+    Crea un multiselect inteligente que maneja automáticamente el comportamiento
+    de "Seleccionar todo" vs opciones individuales.
+    
+    Args:
+        label: Etiqueta del multiselect
+        options: Lista de opciones disponibles
+        default_value: Valor por defecto
+        key: Clave única para el widget
+        select_all_text: Texto de la opción "Seleccionar todo"
+    
+    Returns:
+        Lista de opciones seleccionadas procesadas
+    """
+    # Obtener el estado anterior del multiselect
+    previous_selection = st.session_state.get(f"{key}_previous", default_value)
+    
+    # Crear el multiselect
+    selected_options = st.sidebar.multiselect(
+        label,
+        options=options,
+        default=previous_selection,
+        key=key
+    )
+    
+    # Lógica para manejar el comportamiento exclusivo
+    if not selected_options:
+        # Si no hay selección, usar el valor por defecto
+        final_selection = default_value
+    elif select_all_text in selected_options and len(selected_options) > 1:
+        # Si "Seleccionar todo" está seleccionado junto con otras opciones,
+        # quitar "Seleccionar todo" y mantener solo las opciones individuales
+        final_selection = [opt for opt in selected_options if opt != select_all_text]
+    elif select_all_text in selected_options and len(selected_options) == 1:
+        # Si solo "Seleccionar todo" está seleccionado, mantenerlo
+        final_selection = [select_all_text]
+    else:
+        # Si solo hay opciones individuales, mantenerlas
+        final_selection = selected_options
+    
+    # Guardar el estado actual para la próxima iteración
+    st.session_state[f"{key}_previous"] = final_selection
+    
+    return final_selection
+
+def mostrar_leyenda_manual(categorias_colores, titulo="Categorías"):
+    """
+    Muestra una leyenda manual en Streamlit con los colores y nombres de las categorías.
+    Args:
+        categorias_colores (dict): Diccionario {nombre_categoria: color_hex}
+        titulo (str): Título opcional para la leyenda
+    """
+    st.markdown(f"**{titulo}:**")
+    legend_html = "<div style='display: flex; flex-wrap: wrap; gap: 16px; margin-bottom: 16px;'>"
+    for nombre, color in categorias_colores.items():
+        legend_html += f"<div style='display: flex; align-items: center; gap: 6px;'><div style='width: 18px; height: 18px; background: {color}; border-radius: 3px; border: 1px solid #888;'></div><span style='font-size: 15px;'>{nombre}</span></div>"
+    legend_html += "</div>"
+    st.markdown(legend_html, unsafe_allow_html=True)
+
 # Configuración de la página
 st.set_page_config(
     page_title="Análisis Sectorial",
@@ -225,17 +315,21 @@ def transacciones_page():
                 if 'modality' in df_filtered_by_filters.columns:
                     df_filtered_by_filters = df_filtered_by_filters[~df_filtered_by_filters['modality'].str.contains('other', case=False, na=False)]
                 
+                # Aplicar filtro de región
+                selected_region = st.session_state.get('selected_region', "Todas las regiones")
+                if selected_region != "Todas las regiones" and 'recipientcountry_codename' in df_filtered_by_filters.columns:
+                    paises_region = regiones_dict[selected_region]
+                    df_filtered_by_filters = df_filtered_by_filters[
+                        df_filtered_by_filters['recipientcountry_codename'].isin(paises_region)
+                    ]
+                
                 # Aplicar filtro de países múltiples
                 selected_countries = st.session_state.get('selected_countries', [])
                 if selected_countries and 'recipientcountry_codename' in df_filtered_by_filters.columns:
-                    # Si "Todos" está seleccionado, no filtrar por países específicos
-                    if "Todos" in selected_countries:
-                        pass  # No aplicar filtro, incluir todos los países de la región
-                    else:
-                        # Filtrar por los países específicos seleccionados
-                        df_filtered_by_filters = df_filtered_by_filters[
-                            df_filtered_by_filters['recipientcountry_codename'].astype(str).isin(selected_countries)
-                        ]
+                    # Filtrar por los países seleccionados (ya procesados por handle_multiselect_behavior)
+                    df_filtered_by_filters = df_filtered_by_filters[
+                        df_filtered_by_filters['recipientcountry_codename'].astype(str).isin(selected_countries)
+                    ]
                 
                 if selected_modality != "Todas las modalidades" and 'modality' in df_filtered_by_filters.columns:
                     df_filtered_by_filters = df_filtered_by_filters[
@@ -330,6 +424,7 @@ def transacciones_page():
                         )
                     
                     st.plotly_chart(fig_bars, use_container_width=True)
+                    mostrar_leyenda_manual(colors, titulo="Instituciones")
                     
                     # Gráfico de barras apiladas al 100%
                     st.subheader("📊 Distribución Porcentual por Institución")
@@ -365,7 +460,8 @@ def transacciones_page():
                         title_x=0.5,
                         xaxis_title="Año",
                         yaxis_title="Porcentaje (%)",
-                        height=500
+                        height=500,
+                        showlegend=False
                     )
                     
                     # Eliminar gridlines del gráfico apilado
@@ -373,6 +469,7 @@ def transacciones_page():
                     fig_stacked.update_yaxes(showgrid=False)
                     
                     st.plotly_chart(fig_stacked, use_container_width=True)
+                    mostrar_leyenda_manual(colors, titulo="Instituciones")
                     
                 else:
                     pass
@@ -456,10 +553,11 @@ def transacciones_page():
                         df_filtered = outgoing_commitments.copy()
                         categoria_column = 'modality'
                         
-                        # Obtener modalidades únicas y asignar colores con nueva paleta
-                        modalidades_unicas = df_filtered['modality'].dropna().unique()
                         # Filtrar "Other" de las modalidades
-                        modalidades_unicas = [mod for mod in modalidades_unicas if 'other' not in mod.lower()]
+                        df_filtered = df_filtered[~df_filtered['modality'].str.contains('other', case=False, na=False)]
+                        
+                        # Obtener modalidades únicas después del filtrado
+                        modalidades_unicas = df_filtered['modality'].dropna().unique()
                         colors = {}
                         paleta_modalidades = ['#C1121F', '#FDF0D5', '#003049', '#669BBC', '#DF817A']
                         for i, modalidad in enumerate(modalidades_unicas):
@@ -471,16 +569,7 @@ def transacciones_page():
                         df_filtered = df_filtered[~df_filtered['prefix'].str.contains('other', case=False, na=False)]
                     elif visualization_type == "Sectores":
                         df_filtered = df_filtered[~df_filtered['macrosector'].str.contains('other', case=False, na=False)]
-                    elif visualization_type == "Modalidad":
-                        df_filtered = df_filtered[~df_filtered['modality'].str.contains('other', case=False, na=False)]
-                        # También filtrar después de obtener las modalidades únicas
-                        modalidades_unicas = df_filtered['modality'].dropna().unique()
-                        modalidades_unicas = [mod for mod in modalidades_unicas if 'other' not in mod.lower()]
-                        categorias = modalidades_unicas
-                        colors = {}
-                        paleta_modalidades = ['#C1121F', '#FDF0D5', '#003049', '#669BBC', '#DF817A']
-                        for i, modalidad in enumerate(modalidades_unicas):
-                            colors[modalidad] = paleta_modalidades[i % len(paleta_modalidades)]
+                    # Para Modalidad ya se filtró arriba, no necesitamos filtrar de nuevo
                     
                     if len(df_filtered) > 0:
                         # Agregar columna de año
@@ -531,8 +620,7 @@ def transacciones_page():
                                                     hovertemplate='<b>%{fullData.name}</b><br>' +
                                                                 'Año: %{x}<br>' +
                                                                 'Valor: $%{y:.1f}M USD<br>' +
-                                                                '<extra></extra>',
-                                                    showlegend=(pais == 'UY')
+                                                                '<extra></extra>'
                                                 ),
                                                 row=positions[pais][0], col=positions[pais][1]
                                             )
@@ -542,14 +630,7 @@ def transacciones_page():
                             title_text=f"Evolución de Outgoing Commitments por País - {visualization_type} (2010-2024)",
                             title_x=0.5,
                             barmode='stack',  # Hacer que las barras sean apiladas
-                            legend=dict(
-                                orientation='v',
-                                yanchor='middle',
-                                y=0.25,
-                                xanchor='left',
-                                x=0.83,
-                                bgcolor='rgba(255,255,255,0.7)'
-                            )
+                            showlegend=False
                         )
                         
                         # Actualizar ejes para todos los subplots
@@ -566,6 +647,18 @@ def transacciones_page():
                                     fig.update_yaxes(title_text="", row=i, col=j, showgrid=False)
                         
                         st.plotly_chart(fig, use_container_width=True)
+                        # Leyenda superpuesta sobre el gráfico de Uruguay (segunda fila, segunda columna)
+                        st.markdown(
+                            f"""
+                            <div style='position:relative; width:100%; height:0;'>
+                                <div style='position:absolute; right:-2vw; top:-22vw; z-index:10; background:#23272e; padding:16px 20px 16px 16px; border-radius:10px; box-shadow:0 2px 8px rgba(0,0,0,0.08); min-width:220px;'>
+                                    <b style='color:#fff'>{'Instituciones' if visualization_type=='MDBs' else ('Macrosector' if visualization_type=='Sectores' else 'Modalidad')}:</b><br>
+                                    {''.join([f"<div style='display:flex;align-items:center;gap:6px;margin-top:8px;'><div style='width:18px;height:18px;background:{color};border-radius:3px;border:1px solid #888;'></div><span style='font-size:15px;color:#fff'>{nombre}</span></div>" for nombre, color in colors.items()])}
+                                </div>
+                            </div>
+                            """,
+                            unsafe_allow_html=True
+                        )
                     else:
                         pass
                 else:
@@ -589,21 +682,20 @@ def sectores_page():
         st.warning("No hay información de sectores disponible.")
         return
 
+    # Filtrar solo transacciones de tipo "Outgoing Commitment" y excluir "disbursements"
+    if 'transactiontype_codename' in df.columns:
+        df = df[df['transactiontype_codename'] == 'Outgoing Commitment'].copy()
+
     if 'transactiondate_isodate' in df.columns:
         df['transactiondate_isodate'] = pd.to_datetime(df['transactiondate_isodate'])
 
     prefixes = sorted(df['prefix'].dropna().unique())
-    institution_options = ["Seleccionar todo"] + prefixes
     selected_institutions = st.sidebar.multiselect(
         "🏛️ Institución:",
-        options=institution_options,
-        default=["Seleccionar todo"],
+        options=prefixes,
+        default=[],
         key="sectores_institucion_multiselect"
     )
-    if "Seleccionar todo" in selected_institutions or not selected_institutions:
-        selected_institutions = prefixes
-    else:
-        selected_institutions = [inst for inst in selected_institutions if inst != "Seleccionar todo"]
     if selected_institutions:
         df = df[df['prefix'].isin(selected_institutions)]
 
@@ -626,6 +718,9 @@ def sectores_page():
     )
     if selected_region != "Todas" and 'recipientcountry_codename' in df.columns:
         paises_region = regiones_dict[selected_region]
+        # Filtrar por países de la región seleccionada
+        df = df[df['recipientcountry_codename'].isin(paises_region)]
+        
         countries_in_region = [country for country in df['recipientcountry_codename'].dropna().astype(str).unique() if country in paises_region]
         selected_country = st.sidebar.selectbox(
             "🌍 Seleccionar País:",
@@ -656,8 +751,15 @@ def sectores_page():
 
 
     df['macrosector'] = df['sector_codename'].apply(get_macrosector)
+    
+    # Filtrar excluyendo "No clasificado"
+    df = df[df['macrosector'] != "No clasificado"]
+    
     macrosector_data = df.groupby('macrosector')['value_usd'].sum().reset_index()
     macrosector_data = macrosector_data.sort_values('value_usd', ascending=True)
+    
+    # Convertir valores a millones
+    macrosector_data['value_usd_millions'] = macrosector_data['value_usd'] / 1000000
 
     if macrosector_data.empty:
         st.warning("No hay datos disponibles para los filtros seleccionados.")
@@ -665,12 +767,22 @@ def sectores_page():
 
     fig = px.bar(
         macrosector_data,
-        x='value_usd',
+        x='value_usd_millions',
         y='macrosector',
         orientation='h',
-        labels={'value_usd': 'Valor USD', 'macrosector': 'Macrosector'},
-        title='Acumulado de Valor USD por Macrosector'
+        labels={'value_usd_millions': 'Valor USD (Millones)', 'macrosector': 'Macrosector'},
+        title='Acumulado de Valor USD por Macrosector (excluyendo No clasificado)',
+        hover_data={'value_usd_millions': ':.2f'},
+        custom_data=['value_usd_millions']
     )
+    
+    # Personalizar tooltips
+    fig.update_traces(
+        hovertemplate='<b>%{y}</b><br>' +
+                    'Valor: $%{customdata[0]:.2f}M USD<br>' +
+                    '<extra></extra>'
+    )
+    
     st.plotly_chart(fig, use_container_width=True)
 
 # Función para la página Mercado
@@ -730,17 +842,21 @@ def ticket_page():
                 if 'modality' in df_filtered_by_filters.columns:
                     df_filtered_by_filters = df_filtered_by_filters[~df_filtered_by_filters['modality'].str.contains('other', case=False, na=False)]
                 
+                # Aplicar filtro de región
+                selected_region = st.session_state.get('selected_region', "Todas las regiones")
+                if selected_region != "Todas las regiones" and 'recipientcountry_codename' in df_filtered_by_filters.columns:
+                    paises_region = regiones_dict[selected_region]
+                    df_filtered_by_filters = df_filtered_by_filters[
+                        df_filtered_by_filters['recipientcountry_codename'].isin(paises_region)
+                    ]
+                
                 # Aplicar filtro de países múltiples
                 selected_countries = st.session_state.get('selected_countries', [])
                 if selected_countries and 'recipientcountry_codename' in df_filtered_by_filters.columns:
-                    # Si "Todos" está seleccionado, no filtrar por países específicos
-                    if "Todos" in selected_countries:
-                        pass  # No aplicar filtro, incluir todos los países de la región
-                    else:
-                        # Filtrar por los países específicos seleccionados
-                        df_filtered_by_filters = df_filtered_by_filters[
-                            df_filtered_by_filters['recipientcountry_codename'].astype(str).isin(selected_countries)
-                        ]
+                    # Filtrar por los países seleccionados (ya procesados por handle_multiselect_behavior)
+                    df_filtered_by_filters = df_filtered_by_filters[
+                        df_filtered_by_filters['recipientcountry_codename'].astype(str).isin(selected_countries)
+                    ]
                 
                 if selected_modality != "Todas las modalidades" and 'modality' in df_filtered_by_filters.columns:
                     df_filtered_by_filters = df_filtered_by_filters[
@@ -811,6 +927,46 @@ def ticket_page():
                     st.plotly_chart(fig_boxes, use_container_width=True)
                 else:
                     st.warning("No hay datos disponibles para las instituciones seleccionadas.")
+
+                # --- NUEVA SECCIÓN: Boxplots por país y prefix (agrupados en filas) ---
+                paises_filas = [
+                    ['AR', 'BO'],
+                    ['BR', 'PY'],
+                    ['UY', 'OTROS']
+                ]
+                nombres_paises = {'AR': 'Argentina', 'BO': 'Bolivia', 'BR': 'Brasil', 'PY': 'Paraguay', 'UY': 'Uruguay', 'OTROS': 'Otros'}
+                for fila in paises_filas:
+                    cols = st.columns(len(fila))
+                    for idx, pais in enumerate(fila):
+                        if pais == 'OTROS':
+                            df_pais = df_filtered_by_filters[~df_filtered_by_filters['recipientcountry_code'].isin(['AR', 'BO', 'BR', 'PY', 'UY'])].copy()
+                        else:
+                            df_pais = df_filtered_by_filters[df_filtered_by_filters['recipientcountry_code'] == pais].copy()
+                        if len(df_pais) > 0:
+                            df_pais['value_usd_millions'] = df_pais['value_usd'] / 1_000_000
+                            fig_pais = go.Figure()
+                            for inst in ['iadb', 'worldbank', 'fonplata', 'caf']:
+                                inst_data = df_pais[df_pais['prefix'] == inst]
+                                if len(inst_data) > 0:
+                                    fig_pais.add_trace(
+                                        go.Box(
+                                            y=inst_data['value_usd_millions'],
+                                            name=inst.upper(),
+                                            marker_color=colors[inst],
+                                            boxpoints='outliers',
+                                            hovertemplate=f"<b>{inst.upper()}</b><br>Valor: $%{{y:.2f}}M USD<br><extra></extra>"
+                                        )
+                                    )
+                            fig_pais.update_layout(
+                                height=400,
+                                title_text=pais,  # Solo el código del país como título
+                                title_x=0.5,
+                                xaxis_title="Institución Financiera",
+                                yaxis_title="Valor USD (Millones)",
+                                showlegend=False
+                            )
+                            with cols[idx]:
+                                st.plotly_chart(fig_pais, use_container_width=True)
             else:
                 st.warning("No hay transacciones de tipo 'Outgoing Commitment' disponibles.")
         else:
@@ -957,10 +1113,13 @@ def main():
                     selected_countries = st.sidebar.multiselect(
                         "🌍 Seleccionar Países:",
                         options=countries_with_all,
-                        default=["Todos"],  # Por defecto selecciona "Todos"
+                        default=["Todos"],
                         key="transacciones_countries_multiselect"
                     )
-                    st.session_state['selected_countries'] = selected_countries
+                    
+                    # Aplicar comportamiento de multiselect
+                    final_countries = handle_multiselect_behavior(selected_countries, countries, "Todos")
+                    st.session_state['selected_countries'] = final_countries
                 
                 # Filtro de modalidades
                 if 'modality' in outgoing_commitments.columns:
@@ -1075,10 +1234,13 @@ def main():
                     selected_countries = st.sidebar.multiselect(
                         "🌍 Seleccionar Países:",
                         options=countries_with_all,
-                        default=["Todos"],  # Por defecto selecciona "Todos"
+                        default=["Todos"],
                         key="ticket_countries_multiselect"
                     )
-                    st.session_state['selected_countries'] = selected_countries
+                    
+                    # Aplicar comportamiento de multiselect
+                    final_countries = handle_multiselect_behavior(selected_countries, countries, "Todos")
+                    st.session_state['selected_countries'] = final_countries
                 
                 # Filtro de modalidades
                 if 'modality' in outgoing_commitments.columns:
