@@ -1,9 +1,7 @@
 import streamlit as st
 import pandas as pd
-import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-import os
 
 # Diccionario de macrosectores
 macrosectores_dict = {
@@ -116,163 +114,620 @@ def handle_multiselect_behavior(selected_options, all_options, select_all_text="
     # Si no hay opciones individuales, retornar todas las opciones
     return all_options
 
-def create_smart_multiselect(label, options, default_value, key, select_all_text="Seleccionar todo"):
-    """
-    Crea un multiselect inteligente que maneja automáticamente el comportamiento
-    de "Seleccionar todo" vs opciones individuales.
-    
-    Args:
-        label: Etiqueta del multiselect
-        options: Lista de opciones disponibles
-        default_value: Valor por defecto
-        key: Clave única para el widget
-        select_all_text: Texto de la opción "Seleccionar todo"
-    
-    Returns:
-        Lista de opciones seleccionadas procesadas
-    """
-    # Obtener el estado anterior del multiselect
-    previous_selection = st.session_state.get(f"{key}_previous", default_value)
-    
-    # Crear el multiselect
-    selected_options = st.sidebar.multiselect(
-        label,
-        options=options,
-        default=previous_selection,
-        key=key
-    )
-    
-    # Lógica para manejar el comportamiento exclusivo
-    if not selected_options:
-        # Si no hay selección, usar el valor por defecto
-        final_selection = default_value
-    elif select_all_text in selected_options and len(selected_options) > 1:
-        # Si "Seleccionar todo" está seleccionado junto con otras opciones,
-        # quitar "Seleccionar todo" y mantener solo las opciones individuales
-        final_selection = [opt for opt in selected_options if opt != select_all_text]
-    elif select_all_text in selected_options and len(selected_options) == 1:
-        # Si solo "Seleccionar todo" está seleccionado, mantenerlo
-        final_selection = [select_all_text]
-    else:
-        # Si solo hay opciones individuales, mantenerlas
-        final_selection = selected_options
-    
-    # Guardar el estado actual para la próxima iteración
-    st.session_state[f"{key}_previous"] = final_selection
-    
-    return final_selection
-
-def mostrar_leyenda_manual(categorias_colores, titulo="Categorías"):
-    """
-    Muestra una leyenda manual en Streamlit con los colores y nombres de las categorías.
-    Args:
-        categorias_colores (dict): Diccionario {nombre_categoria: color_hex}
-        titulo (str): Título opcional para la leyenda
-    """
-    st.markdown(f"**{titulo}:**")
-    legend_html = "<div style='display: flex; flex-wrap: wrap; gap: 16px; margin-bottom: 16px;'>"
-    for nombre, color in categorias_colores.items():
-        legend_html += f"<div style='display: flex; align-items: center; gap: 6px;'><div style='width: 18px; height: 18px; background: {color}; border-radius: 3px; border: 1px solid #888;'></div><span style='font-size: 15px;'>{nombre}</span></div>"
-    legend_html += "</div>"
-    st.markdown(legend_html, unsafe_allow_html=True)
-
-# Configuración de la página
-st.set_page_config(
-    page_title="Análisis Sectorial",
-    page_icon="📊",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
-
-# Función para cargar los datos
+# Cargar datos
+@st.cache_data
 def load_data():
-    """Carga los archivos Parquet principales"""
-    try:
-        # Verificar si el archivo existe
-        if not os.path.exists('BDDGLOBALMERGED_ACTUALIZADO.parquet'):
-            return False
-        
-        # Cargar BDDGLOBALMERGED_ACTUALIZADO.parquet
-        try:
-            bdd_global = pd.read_parquet('BDDGLOBALMERGED_ACTUALIZADO.parquet')
-        except Exception as e:
-            st.error(f"Error al cargar BDDGLOBALMERGED_ACTUALIZADO.parquet: {str(e)}")
-            return False
-        
-        # Verificar que el DataFrame se cargó correctamente
-        if bdd_global is None or len(bdd_global) == 0:
-            return False
-        
-        # Verificar si el archivo BDDGLOBALACT.parquet existe
-        if not os.path.exists('BDDGLOBALACT.parquet'):
-            return {'bdd_global': bdd_global, 'bdd_global_act': None}
-        
-        # Cargar BDDGLOBALACT.parquet
-        try:
-            bdd_global_act = pd.read_parquet('BDDGLOBALACT.parquet')
-        except Exception as e:
-            st.error(f"Error al cargar BDDGLOBALACT.parquet: {str(e)}")
-            return {'bdd_global': bdd_global, 'bdd_global_act': None}
-        
-        return {'bdd_global': bdd_global, 'bdd_global_act': bdd_global_act}
-        
-    except Exception as e:
-        st.error(f"Error general al cargar datos: {str(e)}")
-        return False
+    return pd.read_parquet('IDS.parquet')
 
-# Función para la página Home
-def home_page():
-    st.title("Página de Inicio")
-    st.markdown("---")
+df = load_data()
+
+# Sidebar para navegación
+st.sidebar.title('Navegación')
+st.sidebar.markdown('**IDS**')
+paginas = [
+    'Deuda externa',
+    'Multilaterales',
+    'Plazos y Tasas',
+    'Comprometido',
+    'Visor BDD',
+    'Transacciones',
+]
+pagina = st.sidebar.radio('Ir a:', paginas)
+
+# Cargar datos IATI
+@st.cache_data
+def load_iati_data():
+    try:
+        return pd.read_parquet('BDDGLOBALMERGED_ACTUALIZADO.parquet')
+    except:
+        return None
+
+df_iati = load_iati_data()
+
+if pagina == 'Deuda externa':
+    st.title('Deuda externa')
+    # Filtros en la sidebar
+    paises = [col for col in df.columns if '[' in col and ']' in col and not col.startswith('PIB') and not col.startswith('%')]
+    pais = st.sidebar.selectbox('Selecciona país', paises)
+    # Filtro adicional para SC4
+    sc4_options = df['SC4'].dropna().unique() if 'SC4' in df.columns else []
+    sc4 = st.sidebar.selectbox('Selecciona SC4', sc4_options) if len(sc4_options) > 0 else None
+    # Filtro adicional para SC2
+    sc2_options = df['SC2'].dropna().unique() if 'SC2' in df.columns else []
+    sc2 = st.sidebar.selectbox('Selecciona SC2', sc2_options) if len(sc2_options) > 0 else None
+    df_filtrado = df.copy()
+    if sc4 is not None:
+        df_filtrado = df_filtrado[df_filtrado['SC4'] == sc4]
+    if sc2 is not None:
+        df_filtrado = df_filtrado[df_filtrado['SC2'] == sc2]
+    # Tabla eliminada
+
+    # Graficos para el país seleccionado con Plotly
+    st.subheader(f'Gráficos para {pais}')
+    import plotly.express as px
+    if pais in df_filtrado.columns:
+        df_pais = df_filtrado[["SC3", "Time", pais]].dropna()
+        st.markdown('**Serie temporal de deuda por SC3 (Stacked Bar)**')
+        fig1 = px.bar(
+            df_pais,
+            x='Time',
+            y=pais,
+            color='SC3',
+            labels={pais: pais, 'Time': 'Año', 'SC3': 'SC3'},
+            title='USD',
+            height=400
+        )
+        fig1.update_xaxes(showgrid=False)
+        fig1.update_yaxes(showgrid=False, tickformat=',.0f', title_text=f'{pais} (millones USD)')
+        fig1.update_yaxes(tickformat='.2s')
+        fig1.update_traces(
+            hovertemplate="Año: %{x}<br>SC3: %{customdata[0]}<br>Valor: %{y:.2s} USD",
+            customdata=df_pais[['SC3']].values
+        )
+        fig1.update_layout(
+            legend=dict(
+                orientation="h",
+                yanchor="bottom",
+                y=-0.8,  # Más separado del gráfico
+                xanchor="center",
+                x=0.5,
+                title_text=''  # Quitar el título de la leyenda
+            ),
+            title={'text': 'USD', 'x': 0.5, 'xanchor': 'center'}
+        )
+        st.plotly_chart(fig1, use_container_width=True)
+        # Gráfico 100% stacked bar
+        total_por_anio = df_pais.groupby('Time')[pais].transform('sum')
+        df_pais['proporcion'] = df_pais[pais] / total_por_anio
+        fig2 = px.bar(
+            df_pais,
+            x='Time',
+            y='proporcion',
+            color='SC3',
+            labels={'proporcion': 'Proporción', 'Time': 'Año', 'SC3': 'SC3'},
+            title='%',
+            height=400
+        )
+        fig2.update_layout(barmode='stack', yaxis_tickformat='.0%', yaxis_title='Proporción', showlegend=False, title={'text': '%', 'x': 0.5, 'xanchor': 'center'})
+        fig2.update_xaxes(showgrid=False)
+        fig2.update_yaxes(showgrid=False)
+        fig2.update_traces(
+            hovertemplate="Año: %{x}<br>SC3: %{customdata[0]}<br>Porcentaje: %{y:.1%}",
+            customdata=df_pais[['SC3']].values
+        )
+        st.plotly_chart(fig2, use_container_width=True)
+    else:
+        st.info(f'No se encontró la columna "{pais}" en la base de datos.')
+
+elif pagina == 'Multilaterales':
+    st.title('Multilaterales')
+    # Filtros país y SC2
+    paises = [col for col in df.columns if '[' in col and ']' in col and not col.startswith('PIB') and not col.startswith('%')]
+    pais = st.sidebar.selectbox('Selecciona país', paises)
+    sc2_options = df['SC2'].dropna().unique() if 'SC2' in df.columns else []
+    sc2 = st.sidebar.selectbox('Selecciona SC2', sc2_options) if len(sc2_options) > 0 else None
+    # Filtrado
+    df_filtrado = df.copy()
+    if sc2 is not None:
+        df_filtrado = df_filtrado[df_filtrado['SC2'] == sc2]
+    # El dataframe filtrado por país se usará en los gráficos
+    if pais in df_filtrado.columns:
+        df_pais = df_filtrado[["Multilateral", "SC3", "Time", pais]].dropna()
+    else:
+        df_pais = None
+    # st.dataframe(df_filtrado)  # Opcional: mostrar la tabla filtrada
+
+    # Gráficos solo si hay datos para el país seleccionado
+    if df_pais is not None and not df_pais.empty:
+        import plotly.express as px
+        st.subheader(f'Gráficos para {pais}')
+        st.markdown('**Serie temporal de deuda por Multilateral (Stacked Bar)**')
+        
+        # Definir colores consistentes para multilaterales
+        multilateral_colors = {
+            'BIS': '#1f77b4',      # Azul
+            'CAF': '#ff7f0e',      # Naranja
+            'EIB': '#2ca02c',      # Verde
+            'IDB': '#d62728',      # Rojo
+            'IFAD': '#9467bd',     # Púrpura
+            'IIB': '#8c564b',      # Marrón
+            'IMF': '#e377c2',      # Rosa
+            'OPEC': '#7f7f7f',     # Gris
+            'FONPLATA': '#bcbd22', # Amarillo verdoso
+            'World': '#17becf',    # Cian
+            'WB-IBRD': '#ff9896',  # Rosa claro
+            'WB-IDA': '#98df8a',   # Verde claro
+            'WB-MIGA': '#ffbb78'   # Naranja claro
+        }
+        
+        fig1 = px.bar(
+            df_pais,
+            x='Time',
+            y=pais,
+            color='Multilateral',
+            color_discrete_map=multilateral_colors,
+            labels={pais: pais, 'Time': 'Año', 'Multilateral': 'Multilateral'},
+            title='USD',
+            height=400
+        )
+        fig1.update_xaxes(showgrid=False)
+        fig1.update_yaxes(showgrid=False, tickformat=',.0f', title_text=f'{pais} (millones USD)')
+        fig1.update_yaxes(tickformat='.2s')
+        fig1.update_traces(
+            hovertemplate="<b>Año:</b> %{x}<br><b>Multilateral:</b> %{fullData.name}<br><b>Valor:</b> %{y:.2s} USD<extra></extra>"
+        )
+        fig1.update_layout(
+            legend=dict(
+                orientation="h",
+                yanchor="bottom",
+                y=-0.8,
+                xanchor="center",
+                x=0.5,
+                title_text=''
+            ),
+            title={'text': 'USD', 'x': 0.5, 'xanchor': 'center'}
+        )
+        st.plotly_chart(fig1, use_container_width=True)
+        
+        # Gráfico 100% stacked bar
+        total_por_anio = df_pais.groupby('Time')[pais].transform('sum')
+        df_pais['proporcion'] = df_pais[pais] / total_por_anio
+        fig2 = px.bar(
+            df_pais,
+            x='Time',
+            y='proporcion',
+            color='Multilateral',
+            color_discrete_map=multilateral_colors,
+            labels={'proporcion': 'Proporción', 'Time': 'Año', 'Multilateral': 'Multilateral'},
+            title='%',
+            height=400
+        )
+        fig2.update_layout(barmode='stack', yaxis_tickformat='.0%', yaxis_title='Proporción', showlegend=False, title={'text': '%', 'x': 0.5, 'xanchor': 'center'})
+        fig2.update_xaxes(showgrid=False)
+        fig2.update_yaxes(showgrid=False)
+        fig2.update_traces(
+            hovertemplate="<b>Año:</b> %{x}<br><b>Multilateral:</b> %{fullData.name}<br><b>Porcentaje:</b> %{y:.1%}<extra></extra>"
+        )
+        st.plotly_chart(fig2, use_container_width=True)
+    else:
+        st.info(f'No se encontró la columna "{pais}" en la base de datos para el SC2 seleccionado.')
+
+elif pagina == 'Plazos y Tasas':
+    st.title('Plazos y Tasas')
+    # Filtro Multilateral y SC2
+    multilaterales = df['Multilateral'].dropna().unique()
+    multilateral = st.sidebar.selectbox('Selecciona Multilateral', multilaterales)
+    sc2_options = df['SC2'].dropna().unique() if 'SC2' in df.columns else []
+    sc2 = st.sidebar.selectbox('Selecciona SC2', sc2_options) if len(sc2_options) > 0 else None
+    df_filtrado = df[df['Multilateral'] == multilateral]
+    if sc2 is not None:
+        df_filtrado = df_filtrado[df_filtrado['SC2'] == sc2]
+    # Definir países
+    pais_arg = 'Argentina [ARG]'
+    paises_grupo = ['Brazil [BRA]', 'Bolivia [BOL]', 'Paraguay [PRY]']
+    # Verificar que existan las columnas
+    cols_arg = [col for col in [pais_arg] if col in df_filtrado.columns]
+    cols_grupo = [col for col in paises_grupo if col in df_filtrado.columns]
+    # Dataframes para gráficos
+    df_arg = df_filtrado[['Time'] + cols_arg].dropna()
+    df_grupo = df_filtrado[['Time'] + cols_grupo].dropna()
+
+    # Gráficos organizados en filas
+    import plotly.express as px
+    from streamlit import columns
     
-    st.header("Bienvenido al Sistema de Análisis Sectorial")
-    st.write("Esta aplicación permite analizar datos sectoriales de diferentes fuentes.")
+    # Primera fila: Argentina y Bolivia
+    col1, col2 = st.columns(2)
     
-    # Información sobre los datos cargados
-    if 'bdd_global' in st.session_state and 'bdd_global_act' in st.session_state:
+    if not df_arg.empty:
+        with col1:
+            st.markdown("<h3 style='text-align: center;'>Argentina</h3>", unsafe_allow_html=True)
+            fig_arg = px.bar(df_arg, x='Time', y=pais_arg, title='', color_discrete_sequence=['#fca311'], height=300)
+            fig_arg.update_xaxes(showgrid=False, tickangle=45)
+            fig_arg.update_yaxes(showgrid=False)
+            fig_arg.update_layout(title={'text': '', 'x': 0.5, 'xanchor': 'center'})
+            st.plotly_chart(fig_arg, use_container_width=True)
+    else:
+        with col1:
+            st.info('No hay datos para Argentina con el Multilateral seleccionado.')
+    
+    # Buscar Bolivia en el dataframe
+    bolivia_col = 'Bolivia [BOL]'
+    if bolivia_col in df_filtrado.columns:
+        df_bolivia = df_filtrado[['Time', bolivia_col]].dropna()
+        if not df_bolivia.empty:
+            with col2:
+                st.markdown("<h3 style='text-align: center;'>Bolivia</h3>", unsafe_allow_html=True)
+                fig_bolivia = px.bar(df_bolivia, x='Time', y=bolivia_col, title='', color_discrete_sequence=['#fca311'], height=300)
+                fig_bolivia.update_xaxes(showgrid=False, tickangle=45)
+                fig_bolivia.update_yaxes(showgrid=False)
+                fig_bolivia.update_layout(title={'text': '', 'x': 0.5, 'xanchor': 'center'})
+                st.plotly_chart(fig_bolivia, use_container_width=True)
+        else:
+            with col2:
+                st.info('No hay datos para Bolivia con el Multilateral seleccionado.')
+    else:
+        with col2:
+            st.info('No se encontró la columna de Bolivia.')
+    
+    # Segunda fila: Brasil y Paraguay
+    col3, col4 = st.columns(2)
+    
+    # Brasil
+    brasil_col = 'Brazil [BRA]'
+    if brasil_col in df_filtrado.columns:
+        df_brasil = df_filtrado[['Time', brasil_col]].dropna()
+        if not df_brasil.empty:
+            with col3:
+                st.markdown("<h3 style='text-align: center;'>Brasil</h3>", unsafe_allow_html=True)
+                fig_brasil = px.bar(df_brasil, x='Time', y=brasil_col, title='', color_discrete_sequence=['#fca311'], height=300)
+                fig_brasil.update_xaxes(showgrid=False, tickangle=45)
+                fig_brasil.update_yaxes(showgrid=False)
+                fig_brasil.update_layout(title={'text': '', 'x': 0.5, 'xanchor': 'center'})
+                st.plotly_chart(fig_brasil, use_container_width=True)
+        else:
+            with col3:
+                st.info('No hay datos para Brasil con el Multilateral seleccionado.')
+    else:
+        with col3:
+            st.info('No se encontró la columna de Brasil.')
+    
+    # Paraguay
+    paraguay_col = 'Paraguay [PRY]'
+    if paraguay_col in df_filtrado.columns:
+        df_paraguay = df_filtrado[['Time', paraguay_col]].dropna()
+        if not df_paraguay.empty:
+            with col4:
+                st.markdown("<h3 style='text-align: center;'>Paraguay</h3>", unsafe_allow_html=True)
+                fig_paraguay = px.bar(df_paraguay, x='Time', y=paraguay_col, title='', color_discrete_sequence=['#fca311'], height=300)
+                fig_paraguay.update_xaxes(showgrid=False, tickangle=45)
+                fig_paraguay.update_yaxes(showgrid=False)
+                fig_paraguay.update_layout(title={'text': '', 'x': 0.5, 'xanchor': 'center'})
+                st.plotly_chart(fig_paraguay, use_container_width=True)
+        else:
+            with col4:
+                st.info('No hay datos para Paraguay con el Multilateral seleccionado.')
+    else:
+        with col4:
+            st.info('No se encontró la columna de Paraguay.')
+
+elif pagina == 'Comprometido':
+    st.title('Comprometido')
+    
+    # Filtrar por SC2 = "Commitments"
+    df_comprometido = df[df['SC2'] == 'Commitments'].copy()
+    
+    # Definir colores consistentes para multilaterales (mismo que en la página de multilaterales)
+    multilateral_colors = {
+        'BIS': '#1f77b4',      # Azul
+        'CAF': '#ff7f0e',      # Naranja
+        'EIB': '#2ca02c',      # Verde
+        'IDB': '#d62728',      # Rojo
+        'IFAD': '#9467bd',     # Púrpura
+        'IIB': '#8c564b',      # Marrón
+        'IMF': '#e377c2',      # Rosa
+        'OPEC': '#7f7f7f',     # Gris
+        'FONPLATA': '#bcbd22', # Amarillo verdoso
+        'World': '#17becf',    # Cian
+        'WB-IBRD': '#ff9896',  # Rosa claro
+        'WB-IDA': '#98df8a',   # Verde claro
+        'WB-MIGA': '#ffbb78'   # Naranja claro
+    }
+    
+    # Definir países
+    paises = ['Argentina [ARG]', 'Bolivia [BOL]', 'Brazil [BRA]', 'Paraguay [PRY]']
+    
+    # Verificar que existan las columnas de países
+    paises_disponibles = [pais for pais in paises if pais in df_comprometido.columns]
+    
+    if paises_disponibles:
+        import plotly.express as px
+        from streamlit import columns
+        
+        # Primera fila: Argentina y Bolivia
         col1, col2 = st.columns(2)
         
-        with col1:
-            st.subheader("BDDGLOBALMERGED_ACTUALIZADO.parquet")
-            st.write(f"**Registros:** {len(st.session_state['bdd_global'])}")
-            st.write(f"**Columnas:** {len(st.session_state['bdd_global'].columns)}")
-            
-        with col2:
-            st.subheader("BDDGLOBALACT.parquet")
-            st.write(f"**Registros:** {len(st.session_state['bdd_global_act'])}")
-            st.write(f"**Columnas:** {len(st.session_state['bdd_global_act'].columns)}")
-    
-    st.markdown("---")
-    st.subheader("Páginas Disponibles")
-    st.write("""
-    - **Home:** Página principal con información general
-    - **Ejecución:** Análisis de ejecución de proyectos
-    - **Transacciones:** Análisis de transacciones financieras
-    - **Sectores:** Análisis por sectores económicos
-    - **Mercado:** Análisis de mercado
-    - **Ticket:** Gestión de tickets y reportes
-    """)
-
-# Función para la página Ejecución
-def ejecucion_page():
-    st.title("Ejecución")
-    st.markdown("---")
-    
-    st.header("Análisis de Ejecución")
-    st.write("Esta página mostrará análisis relacionados con la ejecución de proyectos y actividades.")
-    
-    if 'bdd_global' in st.session_state:
-        st.subheader("Datos de Ejecución Disponibles")
-        st.write(f"Total de registros: {len(st.session_state['bdd_global'])}")
+        # Argentina
+        if 'Argentina [ARG]' in paises_disponibles:
+            df_arg = df_comprometido[["Multilateral", "Time", "Argentina [ARG]"]].dropna()
+            if not df_arg.empty:
+                with col1:
+                    st.markdown("<h3 style='text-align: center;'>Argentina</h3>", unsafe_allow_html=True)
+                    fig_arg = px.bar(
+                        df_arg,
+                        x='Time',
+                        y='Argentina [ARG]',
+                        color='Multilateral',
+                        color_discrete_map=multilateral_colors,
+                        title='USD',
+                        height=300
+                    )
+                    fig_arg.update_xaxes(showgrid=False, tickangle=45)
+                    fig_arg.update_yaxes(showgrid=False, tickformat='.2s', title_text='Argentina [ARG] (millones USD)')
+                    fig_arg.update_traces(
+                        hovertemplate="<b>Año:</b> %{x}<br><b>Multilateral:</b> %{fullData.name}<br><b>Valor:</b> %{y:.2s} USD<extra></extra>"
+                    )
+                    fig_arg.update_layout(
+                        title={'text': 'USD', 'x': 0.5, 'xanchor': 'center'},
+                        showlegend=False
+                    )
+                    st.plotly_chart(fig_arg, use_container_width=True)
+            else:
+                with col1:
+                    st.info('No hay datos para Argentina con SC2 = Commitments.')
+        else:
+            with col1:
+                st.info('No se encontró la columna de Argentina.')
         
-        # Mostrar las primeras columnas para referencia
-        if len(st.session_state['bdd_global'].columns) > 0:
-            pass
+        # Bolivia
+        if 'Bolivia [BOL]' in paises_disponibles:
+            df_bol = df_comprometido[["Multilateral", "Time", "Bolivia [BOL]"]].dropna()
+            if not df_bol.empty:
+                with col2:
+                    st.markdown("<h3 style='text-align: center;'>Bolivia</h3>", unsafe_allow_html=True)
+                    fig_bol = px.bar(
+                        df_bol,
+                        x='Time',
+                        y='Bolivia [BOL]',
+                        color='Multilateral',
+                        color_discrete_map=multilateral_colors,
+                        title='USD',
+                        height=300
+                    )
+                    fig_bol.update_xaxes(showgrid=False, tickangle=45)
+                    fig_bol.update_yaxes(showgrid=False, tickformat='.2s', title_text='Bolivia [BOL] (millones USD)')
+                    fig_bol.update_traces(
+                        hovertemplate="<b>Año:</b> %{x}<br><b>Multilateral:</b> %{fullData.name}<br><b>Valor:</b> %{y:.2s} USD<extra></extra>"
+                    )
+                    fig_bol.update_layout(
+                        title={'text': 'USD', 'x': 0.5, 'xanchor': 'center'},
+                        showlegend=False
+                    )
+                    st.plotly_chart(fig_bol, use_container_width=True)
+            else:
+                with col2:
+                    st.info('No hay datos para Bolivia con SC2 = Commitments.')
+        else:
+            with col2:
+                st.info('No se encontró la columna de Bolivia.')
+        
+        # Segunda fila: Brasil y Paraguay
+        col3, col4 = st.columns(2)
+        
+        # Brasil
+        if 'Brazil [BRA]' in paises_disponibles:
+            df_bra = df_comprometido[["Multilateral", "Time", "Brazil [BRA]"]].dropna()
+            if not df_bra.empty:
+                with col3:
+                    st.markdown("<h3 style='text-align: center;'>Brasil</h3>", unsafe_allow_html=True)
+                    fig_bra = px.bar(
+                        df_bra,
+                        x='Time',
+                        y='Brazil [BRA]',
+                        color='Multilateral',
+                        color_discrete_map=multilateral_colors,
+                        title='USD',
+                        height=300
+                    )
+                    fig_bra.update_xaxes(showgrid=False, tickangle=45)
+                    fig_bra.update_yaxes(showgrid=False, tickformat='.2s', title_text='Brazil [BRA] (millones USD)')
+                    fig_bra.update_traces(
+                        hovertemplate="<b>Año:</b> %{x}<br><b>Multilateral:</b> %{fullData.name}<br><b>Valor:</b> %{y:.2s} USD<extra></extra>"
+                    )
+                    fig_bra.update_layout(
+                        title={'text': 'USD', 'x': 0.5, 'xanchor': 'center'},
+                        showlegend=False
+                    )
+                    st.plotly_chart(fig_bra, use_container_width=True)
+            else:
+                with col3:
+                    st.info('No hay datos para Brasil con SC2 = Commitments.')
+        else:
+            with col3:
+                st.info('No se encontró la columna de Brasil.')
+        
+        # Paraguay
+        if 'Paraguay [PRY]' in paises_disponibles:
+            df_pry = df_comprometido[["Multilateral", "Time", "Paraguay [PRY]"]].dropna()
+            if not df_pry.empty:
+                with col4:
+                    st.markdown("<h3 style='text-align: center;'>Paraguay</h3>", unsafe_allow_html=True)
+                    fig_pry = px.bar(
+                        df_pry,
+                        x='Time',
+                        y='Paraguay [PRY]',
+                        color='Multilateral',
+                        color_discrete_map=multilateral_colors,
+                        title='USD',
+                        height=300
+                    )
+                    fig_pry.update_xaxes(showgrid=False, tickangle=45)
+                    fig_pry.update_yaxes(showgrid=False, tickformat='.2s', title_text='Paraguay [PRY] (millones USD)')
+                    fig_pry.update_traces(
+                        hovertemplate="<b>Año:</b> %{x}<br><b>Multilateral:</b> %{fullData.name}<br><b>Valor:</b> %{y:.2s} USD<extra></extra>"
+                    )
+                    fig_pry.update_layout(
+                        title={'text': 'USD', 'x': 0.5, 'xanchor': 'center'},
+                        showlegend=False
+                    )
+                    st.plotly_chart(fig_pry, use_container_width=True)
+            else:
+                with col4:
+                    st.info('No hay datos para Paraguay con SC2 = Commitments.')
+        else:
+            with col4:
+                st.info('No se encontró la columna de Paraguay.')
+    
+    else:
+        st.info('No se encontraron datos con SC2 = "Commitments" para los países especificados.')
 
-# Función para la página Transacciones
-def transacciones_page():
-    st.title("Transacciones")
+elif pagina == 'Visor BDD':
+    st.title('Visor BDD')
+    # Parámetros de paginación
+    page_size = 10  # Observaciones por página
+    total_rows = len(df)
+    total_pages = (total_rows - 1) // page_size + 1
+
+    page = st.number_input(
+        'Página',
+        min_value=1,
+        max_value=total_pages,
+        value=1,
+        step=1,
+        help=f"Total de páginas: {total_pages}"
+    )
+
+    start_idx = (page - 1) * page_size
+    end_idx = start_idx + page_size
+    st.dataframe(df.iloc[start_idx:end_idx])
+    st.caption(f"Mostrando filas {start_idx+1} a {min(end_idx, total_rows)} de {total_rows}")
+
+elif pagina == 'Transacciones':
+    st.title('Transacciones IATI')
     st.markdown("---")
+    
+    # Filtros desplegables en el sidebar para la página de Transacciones
+    if df_iati is not None:
+        # Crear un selectbox para elegir la subpágina activa
+        subpage_active = st.sidebar.selectbox(
+            "Subpágina activa:",
+            ["Financiadores", "Países"],
+            index=0,
+            key="transacciones_subpage_select"
+        )
+        st.session_state['subpage_active'] = subpage_active
+
+        # Mostrar filtros según la subpágina seleccionada
+        if subpage_active == "Financiadores":
+            st.sidebar.markdown("---")
+            st.sidebar.subheader("Filtros (Financiadores)")
+            
+            # Slider de años
+            selected_years = st.sidebar.slider(
+                "Rango de Años:",
+                min_value=2010,
+                max_value=2024,
+                value=(2010, 2024),
+                step=1,
+                key="transacciones_years_slider"
+            )
+            st.session_state['selected_years'] = selected_years
+            
+            # Obtener datos filtrados para los filtros
+            outgoing_commitments = df_iati[df_iati['transactiontype_codename'] == 'Outgoing Commitment'].copy()
+            
+            if len(outgoing_commitments) > 0:
+                # Convertir la columna de fecha
+                outgoing_commitments['transactiondate_isodate'] = pd.to_datetime(outgoing_commitments['transactiondate_isodate'])
+                
+                # Filtrar por años seleccionados
+                outgoing_commitments = outgoing_commitments[
+                    (outgoing_commitments['transactiondate_isodate'].dt.year >= selected_years[0]) & 
+                    (outgoing_commitments['transactiondate_isodate'].dt.year <= selected_years[1])
+                ]
+                
+                # Filtro de regiones
+                selected_region = st.sidebar.selectbox(
+                    "Seleccionar Región:",
+                    ["Todas las regiones"] + list(regiones_dict.keys()),
+                    index=0,
+                    key="transacciones_region_select"
+                )
+                st.session_state['selected_region'] = selected_region
+                
+                # Filtro de países basado en la región seleccionada
+                if selected_region != "Todas las regiones" and 'recipientcountry_codename' in outgoing_commitments.columns:
+                    # Filtrar países por la región seleccionada
+                    paises_region = regiones_dict[selected_region]
+                    countries_in_region = [country for country in outgoing_commitments['recipientcountry_codename'].dropna().astype(str).unique() 
+                                         if country in paises_region]
+                    countries = sorted(countries_in_region)
+                    
+                    # Agregar opción "Todos" al inicio
+                    countries_with_all = ["Todos"] + countries
+                    
+                    selected_countries = st.sidebar.multiselect(
+                        "Seleccionar Países:",
+                        options=countries_with_all,
+                        default=["Todos"],
+                        key="transacciones_countries_multiselect"
+                    )
+                    
+                    # Aplicar comportamiento de multiselect
+                    final_countries = handle_multiselect_behavior(selected_countries, countries, "Todos")
+                    st.session_state['selected_countries'] = final_countries
+                
+                # Filtro de modalidades
+                if 'modality' in outgoing_commitments.columns:
+                    modalities = sorted(outgoing_commitments['modality'].dropna().astype(str).unique())
+                    
+                    selected_modality = st.sidebar.selectbox(
+                        "Seleccionar Modalidad:",
+                        ["Todas las modalidades"] + list(modalities),
+                        index=0,
+                        key="transacciones_modality_select"
+                    )
+                    st.session_state['selected_modality'] = selected_modality
+                
+                # Filtro de macrosectores
+                if 'sector_codename' in outgoing_commitments.columns:
+                    sectors = sorted(outgoing_commitments['sector_codename'].dropna().astype(str).unique())
+                    
+                    # Crear lista de macrosectores disponibles
+                    available_macrosectors = set()
+                    for sector in sectors:
+                        macrosector = get_macrosector(sector)
+                        if macrosector != "No clasificado":
+                            available_macrosectors.add(macrosector)
+                    
+                    available_macrosectors = sorted(list(available_macrosectors))
+                    
+                    # Filtro de macrosectores
+                    selected_macrosector = st.sidebar.selectbox(
+                        "Seleccionar Macrosector:",
+                        ["Todos los macrosectores"] + available_macrosectors,
+                        index=0,
+                        key="transacciones_macrosector_select"
+                    )
+                    st.session_state['selected_macrosector'] = selected_macrosector
+
+        elif subpage_active == "Países":
+            st.sidebar.markdown("---")
+            st.sidebar.subheader("Filtros (Países)")
+
+            # Slider de años
+            selected_years = st.sidebar.slider(
+                "Rango de Años:",
+                min_value=2010,
+                max_value=2024,
+                value=(2010, 2024),
+                step=1,
+                key="transacciones_paises_years_slider",
+            )
+            st.session_state['selected_years'] = selected_years
+    
+    # Obtener la subpágina activa del sidebar
+    subpage_active = st.session_state.get('subpage_active', 'Financiadores')
     
     # Obtener la subpágina activa del sidebar
     subpage_active = st.session_state.get('subpage_active', 'Financiadores')
@@ -281,12 +736,10 @@ def transacciones_page():
         st.subheader("Financiadores")
         st.markdown("---")
         
-        if 'bdd_global' in st.session_state:
-            # Verificar que estamos usando la BDD correcta
-            df = st.session_state['bdd_global']
-            
+        # Verificar si los datos IATI están cargados
+        if df_iati is not None:
             # Filtrar solo transacciones de tipo "Outgoing Commitment"
-            outgoing_commitments = df[df['transactiontype_codename'] == 'Outgoing Commitment'].copy()
+            outgoing_commitments = df_iati[df_iati['transactiontype_codename'] == 'Outgoing Commitment'].copy()
             
             if len(outgoing_commitments) > 0:
                 # Convertir la columna de fecha
@@ -368,7 +821,7 @@ def transacciones_page():
                     max_value_millions = yearly_data['value_usd_millions'].max()
                     
                     # Crear gráficos de barras individuales para cada institución
-                    st.subheader("📊 Evolución Anual por Institución")
+                    st.subheader("Evolución Anual por Institución")
                     
                     # Crear subplots para los gráficos de barras
                     fig_bars = make_subplots(
@@ -402,9 +855,7 @@ def transacciones_page():
                     
                     fig_bars.update_layout(
                         height=600,
-                        showlegend=False,
-                        title_text="Evolución de Outgoing Commitments por Institución (2010-2024)",
-                        title_x=0.5
+                        showlegend=False
                     )
                     
                     # Actualizar ejes con rango dinámico basado en el máximo
@@ -424,10 +875,16 @@ def transacciones_page():
                         )
                     
                     st.plotly_chart(fig_bars, use_container_width=True)
-                    mostrar_leyenda_manual(colors, titulo="Instituciones")
+                    
+                    # Mostrar leyenda
+                    legend_html = "<div style='display: flex; flex-wrap: wrap; gap: 16px; margin-bottom: 16px;'>"
+                    for nombre, color in colors.items():
+                        legend_html += f"<div style='display: flex; align-items: center; gap: 6px;'><div style='width: 18px; height: 18px; background: {color}; border-radius: 3px; border: 1px solid #888;'></div><span style='font-size: 15px;'>{nombre.upper()}</span></div>"
+                    legend_html += "</div>"
+                    st.markdown(legend_html, unsafe_allow_html=True)
                     
                     # Gráfico de barras apiladas al 100%
-                    st.subheader("📊 Distribución Porcentual por Institución")
+                    st.subheader("Distribución Porcentual por Institución")
                     
                     # Calcular porcentajes para el gráfico apilado
                     total_by_year = yearly_data.groupby('year')['value_usd'].sum().reset_index()
@@ -456,8 +913,6 @@ def transacciones_page():
                     
                     fig_stacked.update_layout(
                         barmode='stack',
-                        title_text="Distribución Porcentual de Outgoing Commitments por Año (2010-2024)",
-                        title_x=0.5,
                         xaxis_title="Año",
                         yaxis_title="Porcentaje (%)",
                         height=500,
@@ -469,14 +924,16 @@ def transacciones_page():
                     fig_stacked.update_yaxes(showgrid=False)
                     
                     st.plotly_chart(fig_stacked, use_container_width=True)
-                    mostrar_leyenda_manual(colors, titulo="Instituciones")
+                    
+                    # Mostrar leyenda
+                    st.markdown(legend_html, unsafe_allow_html=True)
                     
                 else:
-                    pass
+                    st.info("No hay datos disponibles para las instituciones seleccionadas.")
             else:
-                pass
+                st.info("No se encontraron transacciones de tipo 'Outgoing Commitment'.")
         else:
-            pass
+            st.error("No se pudieron cargar los datos IATI. Verifique que el archivo 'BDDGLOBALMERGED_ACTUALIZADO.parquet' esté disponible.")
     
     elif subpage_active == "Países":
         st.subheader("Países")
@@ -484,17 +941,15 @@ def transacciones_page():
         
         # Selector de tipo de visualización
         visualization_type = st.selectbox(
-            "📊 Tipo de Visualización:",
+            "Tipo de Visualización:",
             ["MDBs", "Sectores", "Modalidad"],
             index=0
         )
         
-        if 'bdd_global' in st.session_state:
-            # Verificar que estamos usando la BDD correcta
-            df = st.session_state['bdd_global']
-            
+        # Verificar si los datos IATI están cargados
+        if df_iati is not None:
             # Filtrar solo transacciones de tipo "Outgoing Commitment"
-            outgoing_commitments = df[df['transactiontype_codename'] == 'Outgoing Commitment'].copy()
+            outgoing_commitments = df_iati[df_iati['transactiontype_codename'] == 'Outgoing Commitment'].copy()
             
             if len(outgoing_commitments) > 0:
                 # Convertir la columna de fecha
@@ -576,7 +1031,7 @@ def transacciones_page():
                         df_filtered['year'] = df_filtered['transactiondate_isodate'].dt.year
                         
                         # Crear gráficos individuales para cada país
-                        st.subheader(f"📊 Evolución Anual por País - {visualization_type}")
+                        st.subheader(f"Evolución Anual por País - {visualization_type}")
                         
                         # Definir el orden de los países
                         paises_orden = ['AR', 'BO', 'BR', 'PY', 'UY']
@@ -627,8 +1082,6 @@ def transacciones_page():
 
                         fig.update_layout(
                             height=800,
-                            title_text=f"Evolución de Outgoing Commitments por País - {visualization_type} (2010-2024)",
-                            title_x=0.5,
                             barmode='stack',  # Hacer que las barras sean apiladas
                             showlegend=False
                         )
@@ -660,639 +1113,8 @@ def transacciones_page():
                             unsafe_allow_html=True
                         )
                     else:
-                        pass
+                        st.info("No hay datos disponibles para los filtros seleccionados.")
                 else:
-                    pass
+                    st.info("No se encontraron transacciones de tipo 'Outgoing Commitment'.")
             else:
-                pass
-        else:
-            pass
-
-# Función para la página Sectores
-def sectores_page():
-    st.title("Sectores")
-    st.markdown("---")
-
-    if 'bdd_global' not in st.session_state:
-        st.warning("No hay datos cargados en la sesión.")
-        return
-
-    df = st.session_state['bdd_global'].copy()
-    if 'sector_codename' not in df.columns:
-        st.warning("No hay información de sectores disponible.")
-        return
-
-    # Filtrar solo transacciones de tipo "Outgoing Commitment" y excluir "disbursements"
-    if 'transactiontype_codename' in df.columns:
-        df = df[df['transactiontype_codename'] == 'Outgoing Commitment'].copy()
-
-    if 'transactiondate_isodate' in df.columns:
-        df['transactiondate_isodate'] = pd.to_datetime(df['transactiondate_isodate'])
-
-    prefixes = sorted(df['prefix'].dropna().unique())
-    selected_institutions = st.sidebar.multiselect(
-        "🏛️ Institución:",
-        options=prefixes,
-        default=[],
-        key="sectores_institucion_multiselect"
-    )
-    if selected_institutions:
-        df = df[df['prefix'].isin(selected_institutions)]
-
-    if 'modality' in df.columns:
-        modalities = sorted(df['modality'].dropna().astype(str).unique())
-        selected_modality = st.sidebar.selectbox(
-            "📋 Seleccionar Modalidad:",
-            ["Todas"] + modalities,
-            index=0,
-            key="sectores_modality_select"
-        )
-        if selected_modality != "Todas":
-            df = df[df['modality'].astype(str) == selected_modality]
-
-    selected_region = st.sidebar.selectbox(
-        "🌎 Seleccionar Región:",
-        ["Todas"] + list(regiones_dict.keys()),
-        index=0,
-        key="sectores_region_select"
-    )
-    if selected_region != "Todas" and 'recipientcountry_codename' in df.columns:
-        paises_region = regiones_dict[selected_region]
-        # Filtrar por países de la región seleccionada
-        df = df[df['recipientcountry_codename'].isin(paises_region)]
-        
-        countries_in_region = [country for country in df['recipientcountry_codename'].dropna().astype(str).unique() if country in paises_region]
-        selected_country = st.sidebar.selectbox(
-            "🌍 Seleccionar País:",
-            ["Todos"] + sorted(countries_in_region),
-            index=0,
-            key="sectores_country_select"
-        )
-        if selected_country != "Todos":
-            df = df[df['recipientcountry_codename'] == selected_country]
-
-    if 'transactiondate_isodate' in df.columns and not df['transactiondate_isodate'].isna().all():
-        df['transactiondate_isodate'] = pd.to_datetime(
-            df['transactiondate_isodate'], errors='coerce'
-        )
-        df = df.dropna(subset=['transactiondate_isodate'])
-        start_year, end_year = st.sidebar.slider(
-            "📅 Rango de Años:",
-            min_value=2010,
-            max_value=2024,
-            value=(2010, 2024),
-            step=1,
-            key="sectores_year_slider"
-        )
-        df = df[
-            (df['transactiondate_isodate'].dt.year >= start_year)
-            & (df['transactiondate_isodate'].dt.year <= end_year)
-        ]
-
-
-    df['macrosector'] = df['sector_codename'].apply(get_macrosector)
-    
-    # Filtrar excluyendo "No clasificado"
-    df = df[df['macrosector'] != "No clasificado"]
-    
-    macrosector_data = df.groupby('macrosector')['value_usd'].sum().reset_index()
-    macrosector_data = macrosector_data.sort_values('value_usd', ascending=True)
-    
-    # Convertir valores a millones
-    macrosector_data['value_usd_millions'] = macrosector_data['value_usd'] / 1000000
-
-    if macrosector_data.empty:
-        st.warning("No hay datos disponibles para los filtros seleccionados.")
-        return
-
-    fig = px.bar(
-        macrosector_data,
-        x='value_usd_millions',
-        y='macrosector',
-        orientation='h',
-        labels={'value_usd_millions': 'Valor USD (Millones)', 'macrosector': 'Macrosector'},
-        title='Acumulado de Valor USD por Macrosector (excluyendo No clasificado)',
-        hover_data={'value_usd_millions': ':.2f'},
-        custom_data=['value_usd_millions']
-    )
-    
-    # Personalizar tooltips
-    fig.update_traces(
-        hovertemplate='<b>%{y}</b><br>' +
-                    'Valor: $%{customdata[0]:.2f}M USD<br>' +
-                    '<extra></extra>'
-    )
-    
-    st.plotly_chart(fig, use_container_width=True)
-
-# Función para la página Mercado
-def mercado_page():
-    st.title("Mercado")
-    st.markdown("---")
-    
-    st.header("Análisis de Mercado")
-    st.write("Esta página mostrará análisis relacionados con el mercado y tendencias.")
-    
-    st.subheader("Indicadores de Mercado")
-    st.write("Aquí se mostrarán indicadores y análisis de mercado.")
-
-# Función para la página Ticket
-def ticket_page():
-    st.title("Ticket")
-    st.markdown("---")
-    
-    # Obtener la subpágina activa del sidebar
-    subpage_active = st.session_state.get('ticket_subpage_active', 'Financiadores')
-    
-    if subpage_active == "Financiadores":
-        st.subheader("Financiadores")
-        st.markdown("---")
-        
-        if 'bdd_global' in st.session_state:
-            # Verificar que estamos usando la BDD correcta
-            df = st.session_state['bdd_global']
-            
-            # Filtrar solo transacciones de tipo "Outgoing Commitment"
-            outgoing_commitments = df[df['transactiontype_codename'] == 'Outgoing Commitment'].copy()
-            
-            if len(outgoing_commitments) > 0:
-                # Convertir la columna de fecha
-                outgoing_commitments['transactiondate_isodate'] = pd.to_datetime(outgoing_commitments['transactiondate_isodate'])
-                
-                # Obtener rango de años del sidebar
-                selected_years = st.session_state.get('selected_years', (2010, 2024))
-                
-                # Filtrar por años seleccionados
-                outgoing_commitments = outgoing_commitments[
-                    (outgoing_commitments['transactiondate_isodate'].dt.year >= selected_years[0]) & 
-                    (outgoing_commitments['transactiondate_isodate'].dt.year <= selected_years[1])
-                ]
-                
-                # Obtener filtros del sidebar
-                selected_modality = st.session_state.get('selected_modality', "Todas las modalidades")
-                selected_macrosector = st.session_state.get('selected_macrosector', "Todos los macrosectores")
-                
-                # Aplicar filtros
-                df_filtered_by_filters = outgoing_commitments.copy()
-                
-                # Filtrar valores negativos
-                df_filtered_by_filters = df_filtered_by_filters[df_filtered_by_filters['value_usd'] > 0]
-                
-                # Filtrar "Other" en modality
-                if 'modality' in df_filtered_by_filters.columns:
-                    df_filtered_by_filters = df_filtered_by_filters[~df_filtered_by_filters['modality'].str.contains('other', case=False, na=False)]
-                
-                # Aplicar filtro de región
-                selected_region = st.session_state.get('selected_region', "Todas las regiones")
-                if selected_region != "Todas las regiones" and 'recipientcountry_codename' in df_filtered_by_filters.columns:
-                    paises_region = regiones_dict[selected_region]
-                    df_filtered_by_filters = df_filtered_by_filters[
-                        df_filtered_by_filters['recipientcountry_codename'].isin(paises_region)
-                    ]
-                
-                # Aplicar filtro de países múltiples
-                selected_countries = st.session_state.get('selected_countries', [])
-                if selected_countries and 'recipientcountry_codename' in df_filtered_by_filters.columns:
-                    # Filtrar por los países seleccionados (ya procesados por handle_multiselect_behavior)
-                    df_filtered_by_filters = df_filtered_by_filters[
-                        df_filtered_by_filters['recipientcountry_codename'].astype(str).isin(selected_countries)
-                    ]
-                
-                if selected_modality != "Todas las modalidades" and 'modality' in df_filtered_by_filters.columns:
-                    df_filtered_by_filters = df_filtered_by_filters[
-                        df_filtered_by_filters['modality'].astype(str) == selected_modality
-                    ]
-                
-                # Aplicar filtro de macrosector
-                if selected_macrosector != "Todos los macrosectores" and 'sector_codename' in df_filtered_by_filters.columns:
-                    # Obtener sectores del macrosector seleccionado
-                    macrosector_sectors = macrosectores_dict.get(selected_macrosector, [])
-                    df_filtered_by_filters = df_filtered_by_filters[
-                        df_filtered_by_filters['sector_codename'].astype(str).isin(macrosector_sectors)
-                    ]
-                
-                # Definir colores para cada institución
-                colors = {
-                    'fonplata': '#c1121f',
-                    'iadb': '#0496ff', 
-                    'caf': '#38b000',
-                    'worldbank': '#004e89'
-                }
-                
-                # Filtrar por las instituciones específicas
-                instituciones = ['fonplata', 'iadb', 'caf', 'worldbank']
-                df_filtered = df_filtered_by_filters[df_filtered_by_filters['prefix'].isin(instituciones)].copy()
-                
-                if len(df_filtered) > 0:
-                    # Convertir valores a millones para mejor visualización
-                    df_filtered['value_usd_millions'] = df_filtered['value_usd'] / 1000000
-                    
-                    # Crear box plots para cada institución
-                    st.subheader("📊 Box Plots por Institución Financiera")
-                    
-                    # Crear un solo gráfico con todos los box plots
-                    fig_boxes = go.Figure()
-                    
-                    # Reordenar las instituciones según el nuevo orden
-                    instituciones_ordenadas = ['iadb', 'worldbank', 'fonplata', 'caf']
-                    
-                    for inst in instituciones_ordenadas:
-                        inst_data = df_filtered[df_filtered['prefix'] == inst]
-                        if len(inst_data) > 0:
-                            fig_boxes.add_trace(
-                                go.Box(
-                                    y=inst_data['value_usd_millions'],
-                                    name=inst.upper(),
-                                    marker_color=colors[inst],
-                                    boxpoints='outliers',
-                                    hovertemplate='<b>%{fullData.name}</b><br>' +
-                                                'Valor: $%{y:.2f}M USD<br>' +
-                                                '<extra></extra>'
-                                )
-                            )
-                    
-                    fig_boxes.update_layout(
-                        height=500,
-                        title_text="Distribución de Valores por Institución Financiera (Box Plots)",
-                        title_x=0.5,
-                        xaxis_title="Institución Financiera",
-                        yaxis_title="Valor USD (Millones)",
-                        showlegend=False
-                    )
-                    
-                    # Actualizar ejes
-                    fig_boxes.update_xaxes(showgrid=False)
-                    fig_boxes.update_yaxes(showgrid=False)
-                    
-                    st.plotly_chart(fig_boxes, use_container_width=True)
-                else:
-                    st.warning("No hay datos disponibles para las instituciones seleccionadas.")
-
-                # --- NUEVA SECCIÓN: Boxplots por país y prefix (agrupados en filas) ---
-                paises_filas = [
-                    ['AR', 'BO'],
-                    ['BR', 'PY'],
-                    ['UY', 'OTROS']
-                ]
-                nombres_paises = {'AR': 'Argentina', 'BO': 'Bolivia', 'BR': 'Brasil', 'PY': 'Paraguay', 'UY': 'Uruguay', 'OTROS': 'Otros'}
-                for fila in paises_filas:
-                    cols = st.columns(len(fila))
-                    for idx, pais in enumerate(fila):
-                        if pais == 'OTROS':
-                            df_pais = df_filtered_by_filters[~df_filtered_by_filters['recipientcountry_code'].isin(['AR', 'BO', 'BR', 'PY', 'UY'])].copy()
-                        else:
-                            df_pais = df_filtered_by_filters[df_filtered_by_filters['recipientcountry_code'] == pais].copy()
-                        if len(df_pais) > 0:
-                            df_pais['value_usd_millions'] = df_pais['value_usd'] / 1_000_000
-                            fig_pais = go.Figure()
-                            for inst in ['iadb', 'worldbank', 'fonplata', 'caf']:
-                                inst_data = df_pais[df_pais['prefix'] == inst]
-                                if len(inst_data) > 0:
-                                    fig_pais.add_trace(
-                                        go.Box(
-                                            y=inst_data['value_usd_millions'],
-                                            name=inst.upper(),
-                                            marker_color=colors[inst],
-                                            boxpoints='outliers',
-                                            hovertemplate=f"<b>{inst.upper()}</b><br>Valor: $%{{y:.2f}}M USD<br><extra></extra>"
-                                        )
-                                    )
-                            fig_pais.update_layout(
-                                height=400,
-                                title_text=pais,  # Solo el código del país como título
-                                title_x=0.5,
-                                xaxis_title="Institución Financiera",
-                                yaxis_title="Valor USD (Millones)",
-                                showlegend=False
-                            )
-                            with cols[idx]:
-                                st.plotly_chart(fig_pais, use_container_width=True)
-            else:
-                st.warning("No hay transacciones de tipo 'Outgoing Commitment' disponibles.")
-        else:
-            st.warning("No hay datos cargados en la sesión.")
-    
-    elif subpage_active == "Gestión":
-        st.subheader("Gestión de Tickets")
-        st.write("Esta página permitirá gestionar tickets y reportes.")
-        
-        st.subheader("Funcionalidades de Ticket")
-        st.write("""
-        - Crear nuevos tickets
-        - Ver tickets existentes
-        - Generar reportes
-        - Seguimiento de estado
-        """)
-
-# Función para inicializar la sesión
-def initialize_session():
-    """Inicializa las variables de sesión si no existen"""
-    if 'bdd_global' not in st.session_state:
-        st.session_state['bdd_global'] = None
-    if 'bdd_global_act' not in st.session_state:
-        st.session_state['bdd_global_act'] = None
-
-# Función para limpiar la sesión
-def clear_session():
-    """Limpia los datos de la sesión"""
-    if 'bdd_global' in st.session_state:
-        del st.session_state['bdd_global']
-    if 'bdd_global_act' in st.session_state:
-        del st.session_state['bdd_global_act']
-
-# Función principal
-def main():
-    # Inicializar sesión
-    initialize_session()
-    
-    # Verificar si los datos ya están cargados en la sesión
-    if st.session_state['bdd_global'] is not None:
-        pass
-        
-        # Mostrar información adicional sobre los datos
-        df = st.session_state['bdd_global']
-        if len(df.columns) > 0:
-            pass
-    else:
-        # Cargar datos
-        pass
-        data_result = load_data()
-        
-        if data_result is False:
-            st.stop()
-        
-        # Guardar los datos en la sesión
-        if isinstance(data_result, dict):
-            st.session_state['bdd_global'] = data_result['bdd_global']
-            st.session_state['bdd_global_act'] = data_result['bdd_global_act']
-            
-            # Verificar que los datos se guardaron correctamente
-            if 'bdd_global' in st.session_state and st.session_state['bdd_global'] is not None:
-                pass
-                
-                # Mostrar información adicional sobre los datos
-                df = st.session_state['bdd_global']
-                if len(df.columns) > 0:
-                    pass
-            else:
-                st.stop()
-        else:
-            st.stop()
-    
-    # Sidebar para navegación
-    st.sidebar.title("Análisis Sectorial")
-    st.sidebar.markdown("---")
-    
-    # Menú de navegación
-    page = st.sidebar.selectbox(
-        "Seleccione una página:",
-        ["Home", "Ejecución", "Transacciones", "Sectores", "Mercado", "Ticket"]
-    )
-    
-    # Filtros desplegables en el sidebar para la página de Transacciones
-    if page == "Transacciones" and 'bdd_global' in st.session_state:
-        # Crear un selectbox para elegir la subpágina activa
-        subpage_active = st.sidebar.selectbox(
-            "📊 Subpágina activa:",
-            ["Financiadores", "Países"],
-            index=0,
-            key="transacciones_subpage_select"
-        )
-        st.session_state['subpage_active'] = subpage_active
-
-        # Mostrar filtros según la subpágina seleccionada
-        if subpage_active == "Financiadores":
-            st.sidebar.markdown("---")
-            st.sidebar.subheader("🔍 Filtros (Financiadores)")
-            
-            # Slider de años
-            selected_years = st.sidebar.slider(
-                "📅 Rango de Años:",
-                min_value=2010,
-                max_value=2024,
-                value=(2010, 2024),
-                step=1,
-                key="transacciones_years_slider"
-            )
-            st.session_state['selected_years'] = selected_years
-            
-            # Obtener datos filtrados para los filtros
-            df = st.session_state['bdd_global']
-            outgoing_commitments = df[df['transactiontype_codename'] == 'Outgoing Commitment'].copy()
-            
-            if len(outgoing_commitments) > 0:
-                # Convertir la columna de fecha
-                outgoing_commitments['transactiondate_isodate'] = pd.to_datetime(outgoing_commitments['transactiondate_isodate'])
-                
-                # Filtrar por años seleccionados
-                outgoing_commitments = outgoing_commitments[
-                    (outgoing_commitments['transactiondate_isodate'].dt.year >= selected_years[0]) & 
-                    (outgoing_commitments['transactiondate_isodate'].dt.year <= selected_years[1])
-                ]
-                
-                # Filtro de regiones
-                selected_region = st.sidebar.selectbox(
-                    "🌎 Seleccionar Región:",
-                    ["Todas las regiones"] + list(regiones_dict.keys()),
-                    index=0,
-                    key="transacciones_region_select"
-                )
-                st.session_state['selected_region'] = selected_region
-                
-                # Filtro de países basado en la región seleccionada
-                if selected_region != "Todas las regiones" and 'recipientcountry_codename' in outgoing_commitments.columns:
-                    # Filtrar países por la región seleccionada
-                    paises_region = regiones_dict[selected_region]
-                    countries_in_region = [country for country in outgoing_commitments['recipientcountry_codename'].dropna().astype(str).unique() 
-                                         if country in paises_region]
-                    countries = sorted(countries_in_region)
-                    
-                    # Agregar opción "Todos" al inicio
-                    countries_with_all = ["Todos"] + countries
-                    
-                    selected_countries = st.sidebar.multiselect(
-                        "🌍 Seleccionar Países:",
-                        options=countries_with_all,
-                        default=["Todos"],
-                        key="transacciones_countries_multiselect"
-                    )
-                    
-                    # Aplicar comportamiento de multiselect
-                    final_countries = handle_multiselect_behavior(selected_countries, countries, "Todos")
-                    st.session_state['selected_countries'] = final_countries
-                
-                # Filtro de modalidades
-                if 'modality' in outgoing_commitments.columns:
-                    modalities = sorted(outgoing_commitments['modality'].dropna().astype(str).unique())
-                    
-                    selected_modality = st.sidebar.selectbox(
-                        "📋 Seleccionar Modalidad:",
-                        ["Todas las modalidades"] + list(modalities),
-                        index=0,
-                        key="transacciones_modality_select"
-                    )
-                    st.session_state['selected_modality'] = selected_modality
-                
-                # Filtro de macrosectores
-                if 'sector_codename' in outgoing_commitments.columns:
-                    sectors = sorted(outgoing_commitments['sector_codename'].dropna().astype(str).unique())
-                    
-                    # Crear lista de macrosectores disponibles
-                    available_macrosectors = set()
-                    for sector in sectors:
-                        macrosector = get_macrosector(sector)
-                        if macrosector != "No clasificado":
-                            available_macrosectors.add(macrosector)
-                    
-                    available_macrosectors = sorted(list(available_macrosectors))
-                    
-                    # Filtro de macrosectores
-                    selected_macrosector = st.sidebar.selectbox(
-                        "🏗️ Seleccionar Macrosector:",
-                        ["Todos los macrosectores"] + available_macrosectors,
-                        index=0,
-                        key="transacciones_macrosector_select"
-                    )
-                    st.session_state['selected_macrosector'] = selected_macrosector
-
-        elif subpage_active == "Países":
-            st.sidebar.markdown("---")
-            st.sidebar.subheader("🔍 Filtros (Países)")
-
-            # Slider de años
-            selected_years = st.sidebar.slider(
-                "📅 Rango de Años:",
-                min_value=2010,
-                max_value=2024,
-                value=(2010, 2024),
-                step=1,
-                key="transacciones_paises_years_slider",
-            )
-            st.session_state['selected_years'] = selected_years
-    
-    # Filtros desplegables en el sidebar para la página de Ticket
-    if page == "Ticket" and 'bdd_global' in st.session_state:
-        # Crear un selectbox para elegir la subpágina activa
-        ticket_subpage_active = st.sidebar.selectbox(
-            "📊 Subpágina activa:",
-            ["Financiadores", "Gestión"],
-            index=0,
-            key="ticket_subpage_select"
-        )
-        st.session_state['ticket_subpage_active'] = ticket_subpage_active
-        
-        # Solo mostrar filtros si estamos en la subpágina de Financiadores
-        if ticket_subpage_active == "Financiadores":
-            st.sidebar.markdown("---")
-            st.sidebar.subheader("🔍 Filtros (Financiadores)")
-            
-            # Slider de años
-            selected_years = st.sidebar.slider(
-                "📅 Rango de Años:",
-                min_value=2010,
-                max_value=2024,
-                value=(2010, 2024),
-                step=1,
-                key="ticket_years_slider"
-            )
-            st.session_state['selected_years'] = selected_years
-            
-            # Obtener datos filtrados para los filtros
-            df = st.session_state['bdd_global']
-            outgoing_commitments = df[df['transactiontype_codename'] == 'Outgoing Commitment'].copy()
-            
-            if len(outgoing_commitments) > 0:
-                # Convertir la columna de fecha
-                outgoing_commitments['transactiondate_isodate'] = pd.to_datetime(outgoing_commitments['transactiondate_isodate'])
-                
-                # Filtrar por años seleccionados
-                outgoing_commitments = outgoing_commitments[
-                    (outgoing_commitments['transactiondate_isodate'].dt.year >= selected_years[0]) & 
-                    (outgoing_commitments['transactiondate_isodate'].dt.year <= selected_years[1])
-                ]
-                
-                # Filtro de regiones
-                selected_region = st.sidebar.selectbox(
-                    "🌎 Seleccionar Región:",
-                    ["Todas las regiones"] + list(regiones_dict.keys()),
-                    index=0,
-                    key="ticket_region_select"
-                )
-                st.session_state['selected_region'] = selected_region
-                
-                # Filtro de países basado en la región seleccionada
-                if selected_region != "Todas las regiones" and 'recipientcountry_codename' in outgoing_commitments.columns:
-                    # Filtrar países por la región seleccionada
-                    paises_region = regiones_dict[selected_region]
-                    countries_in_region = [country for country in outgoing_commitments['recipientcountry_codename'].dropna().astype(str).unique() 
-                                         if country in paises_region]
-                    countries = sorted(countries_in_region)
-                    
-                    # Agregar opción "Todos" al inicio
-                    countries_with_all = ["Todos"] + countries
-                    
-                    selected_countries = st.sidebar.multiselect(
-                        "🌍 Seleccionar Países:",
-                        options=countries_with_all,
-                        default=["Todos"],
-                        key="ticket_countries_multiselect"
-                    )
-                    
-                    # Aplicar comportamiento de multiselect
-                    final_countries = handle_multiselect_behavior(selected_countries, countries, "Todos")
-                    st.session_state['selected_countries'] = final_countries
-                
-                # Filtro de modalidades
-                if 'modality' in outgoing_commitments.columns:
-                    modalities = sorted(outgoing_commitments['modality'].dropna().astype(str).unique())
-                    
-                    selected_modality = st.sidebar.selectbox(
-                        "📋 Seleccionar Modalidad:",
-                        ["Todas las modalidades"] + list(modalities),
-                        index=0,
-                        key="ticket_modality_select"
-                    )
-                    st.session_state['selected_modality'] = selected_modality
-                
-                # Filtro de macrosectores
-                if 'sector_codename' in outgoing_commitments.columns:
-                    sectors = sorted(outgoing_commitments['sector_codename'].dropna().astype(str).unique())
-                    
-                    # Crear lista de macrosectores disponibles
-                    available_macrosectors = set()
-                    for sector in sectors:
-                        macrosector = get_macrosector(sector)
-                        if macrosector != "No clasificado":
-                            available_macrosectors.add(macrosector)
-                    
-                    available_macrosectors = sorted(list(available_macrosectors))
-                    
-                    # Filtro de macrosectores
-                    selected_macrosector = st.sidebar.selectbox(
-                        "🏗️ Seleccionar Macrosector:",
-                        ["Todos los macrosectores"] + available_macrosectors,
-                        index=0,
-                        key="ticket_macrosector_select"
-                    )
-                    st.session_state['selected_macrosector'] = selected_macrosector
-    
-    # Navegación basada en la selección
-    if page == "Home":
-        home_page()
-    elif page == "Ejecución":
-        ejecucion_page()
-    elif page == "Transacciones":
-        transacciones_page()
-    elif page == "Sectores":
-        sectores_page()
-    elif page == "Mercado":
-        mercado_page()
-    elif page == "Ticket":
-        ticket_page()
-    
-    # Footer
-    st.sidebar.markdown("---")
-    st.sidebar.markdown("**Desarrollado con Streamlit**")
-
-if __name__ == "__main__":
-    main()
+                st.error("No se pudieron cargar los datos IATI. Verifique que el archivo 'BDDGLOBALMERGED_ACTUALIZADO.parquet' esté disponible.")
