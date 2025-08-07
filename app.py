@@ -191,12 +191,17 @@ if pagina == 'Deuda externa':
         df_pais = df_filtrado[["SC3", "Time", pais]].dropna()
         # Tomar el valor máximo por año y SC3 para evitar duplicados (mantiene el valor más significativo)
         df_pais_agg = df_pais.groupby(['Time', 'SC3'])[pais].max().reset_index()
+        # Paleta de colores para categorías de deuda externa
+        palette_sc3 = ['#FF6B35', '#F7C59F', '#EFEFD0', '#789FAD', '#004E89', '#7C8A94']
+        sc3_categories = df_pais_agg['SC3'].unique()
+        sc3_color_map = {cat: palette_sc3[i % len(palette_sc3)] for i, cat in enumerate(sc3_categories)}
         st.markdown('**Serie temporal de deuda por SC3 (Stacked Bar)**')
         fig1 = px.bar(
             df_pais_agg,
             x='Time',
             y=pais,
             color='SC3',
+            color_discrete_map=sc3_color_map,
             labels={pais: pais, 'Time': 'Año', 'SC3': 'SC3'},
             title='USD',
             height=400
@@ -227,6 +232,7 @@ if pagina == 'Deuda externa':
             x='Time',
             y='proporcion',
             color='SC3',
+            color_discrete_map=sc3_color_map,
             labels={'proporcion': 'Proporción', 'Time': 'Año', 'SC3': 'SC3'},
             title='%',
             height=400
