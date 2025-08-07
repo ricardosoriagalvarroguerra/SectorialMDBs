@@ -208,6 +208,7 @@ if pagina == 'Deuda externa':
     import plotly.express as px
     if pais in df_filtrado.columns:
         df_pais = df_filtrado[["SC3", "Time", pais]].dropna()
+        df_pais = df_pais[~df_pais["SC3"].str.contains("All creditors", case=False, na=False)]
         # Tomar el valor máximo por año y SC3 para evitar duplicados (mantiene el valor más significativo)
         df_pais_agg = df_pais.groupby(['Time', 'SC3'])[pais].max().reset_index()
         # Paleta de colores específica para categorías de deuda externa
@@ -314,7 +315,7 @@ elif pagina == 'Multilaterales':
     # El dataframe filtrado por país se usará en los gráficos
     if pais in df_filtrado.columns:
         df_pais = df_filtrado[["Multilateral", "SC3", "Time", pais]].dropna()
-        df_pais = df_pais[df_pais["Multilateral"] != "World"]
+        df_pais = df_pais[~df_pais["Multilateral"].str.strip().str.lower().eq("world")]
     else:
         df_pais = None
     # st.dataframe(df_filtrado)  # Opcional: mostrar la tabla filtrada
@@ -399,7 +400,7 @@ elif pagina == 'Multilaterales':
 elif pagina == 'Plazos y Tasas':
     st.title('Plazos y Tasas')
     # Filtro Multilateral y SC2
-    multilaterales = df['Multilateral'].dropna().unique()
+    multilaterales = [m for m in df['Multilateral'].dropna().unique() if m.strip().lower() != 'world']
     multilateral = st.sidebar.selectbox('Selecciona Multilateral', multilaterales)
     sc2_allowed = [
         'Average grace period on new external commitments',
@@ -520,6 +521,7 @@ elif pagina == 'Comprometido':
 
     # Filtrar por SC2 = "Commitments"
     df_comprometido = df[df['SC2'] == 'Commitments'].copy()
+    df_comprometido = df_comprometido[~df_comprometido['Multilateral'].str.strip().str.lower().eq('world')]
     # Filtro por rango de años
     if 'Time' in df_comprometido.columns and not df_comprometido['Time'].empty:
         min_year = int(df_comprometido['Time'].min())
@@ -540,8 +542,7 @@ elif pagina == 'Comprometido':
         'IIB': '#9d4edd',
         'OPEC': '#ff6b35',
         'IFAD': '#76c893',
-        'WB-MIGA': '#ffbb78',
-        'World': '#17becf'
+        'WB-MIGA': '#ffbb78'
     }
     
     # Definir países
