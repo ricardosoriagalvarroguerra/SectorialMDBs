@@ -210,13 +210,26 @@ if pagina == 'Deuda externa':
         df_pais = df_filtrado[["SC3", "Time", pais]].dropna()
         # Tomar el valor máximo por año y SC3 para evitar duplicados (mantiene el valor más significativo)
         df_pais_agg = df_pais.groupby(['Time', 'SC3'])[pais].max().reset_index()
-        # Paleta de colores única para categorías de deuda externa
+        # Paleta de colores específica para categorías de deuda externa
         sc3_categories = df_pais_agg['SC3'].unique()
-        palette_sc3 = px.colors.sample_colorscale(
-            'Viridis',
-            [n / max(len(sc3_categories) - 1, 1) for n in range(len(sc3_categories))]
-        )
-        sc3_color_map = {cat: palette_sc3[i] for i, cat in enumerate(sc3_categories)}
+        base_palette = [
+            '#6A80C4', '#A7B6E2', '#002B8F', '#DC493A', '#FFFFFF',
+            '#4392F1', '#E2C3CE', '#715676', '#243156', '#82AFED'
+        ]
+        if len(sc3_categories) > len(base_palette):
+            extra_palettes = (
+                px.colors.qualitative.Plotly
+                + px.colors.qualitative.Safe
+                + px.colors.qualitative.Set3
+                + px.colors.qualitative.Pastel
+                + px.colors.qualitative.D3
+            )
+            for color in extra_palettes:
+                if color not in base_palette:
+                    base_palette.append(color)
+                if len(base_palette) >= len(sc3_categories):
+                    break
+        sc3_color_map = {cat: base_palette[i] for i, cat in enumerate(sc3_categories)}
         st.markdown('**Serie temporal de deuda por SC3 (Stacked Bar)**')
         fig1 = px.bar(
             df_pais_agg,
