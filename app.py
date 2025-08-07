@@ -274,8 +274,20 @@ elif pagina == 'Multilaterales':
     # Filtros país y SC2
     paises = [col for col in df.columns if '[' in col and ']' in col and not col.startswith('PIB') and not col.startswith('%')]
     pais = st.sidebar.selectbox('Selecciona país', paises)
-    sc2_options = df['SC2'].dropna().unique() if 'SC2' in df.columns else []
-    sc2 = st.sidebar.selectbox('Selecciona SC2', sc2_options) if len(sc2_options) > 0 else None
+    allowed_sc2 = [
+        'Debt outstanding and disbursed',
+        'Disbursements',
+        'interest payments',
+        'Net flows (DIS - AMT)',
+        'Net transfers (NFL - INT)',
+        'principal repayments',
+        'Total debt service (AMT + INT)'
+    ]
+    if 'SC2' in df.columns:
+        sc2_options = [opt for opt in allowed_sc2 if opt in df['SC2'].dropna().unique()]
+    else:
+        sc2_options = []
+    sc2 = st.sidebar.selectbox('Selecciona SC2', sc2_options) if sc2_options else None
     # Filtrado
     df_filtrado = df.copy()
     if sc2 is not None:
