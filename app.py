@@ -267,6 +267,7 @@ elif pagina == 'Multilaterales':
     # El dataframe filtrado por país se usará en los gráficos
     if pais in df_filtrado.columns:
         df_pais = df_filtrado[["Multilateral", "SC3", "Time", pais]].dropna()
+        df_pais = df_pais[df_pais["Multilateral"] != "World"]
     else:
         df_pais = None
     # st.dataframe(df_filtrado)  # Opcional: mostrar la tabla filtrada
@@ -282,19 +283,18 @@ elif pagina == 'Multilaterales':
         
         # Definir colores consistentes para multilaterales
         multilateral_colors = {
-            'BIS': '#1f77b4',      # Azul
-            'CAF': '#ff7f0e',      # Naranja
-            'EIB': '#2ca02c',      # Verde
-            'IDB': '#d62728',      # Rojo
-            'IFAD': '#9467bd',     # Púrpura
-            'IIB': '#8c564b',      # Marrón
-            'IMF': '#e377c2',      # Rosa
-            'OPEC': '#7f7f7f',     # Gris
-            'FONPLATA': '#bcbd22', # Amarillo verdoso
-            'World': '#17becf',    # Cian
-            'WB-IBRD': '#ff9896',  # Rosa claro
-            'WB-IDA': '#98df8a',   # Verde claro
-            'WB-MIGA': '#ffbb78'   # Naranja claro
+            'CAF': '#38b000',
+            'FONPLATA': '#c1121f',
+            'IDB': '#0077b6',
+            'WB-IBRD': '#023047',
+            'BIS': '#fdf0d5',
+            'WB-IDA': '#ffc300',
+            'IMF': '#e36414',
+            'EIB': '#e5e5e5',
+            'IIB': '#9d4edd',
+            'OPEC': '#ff6b35',
+            'IFAD': '#76c893',
+            'WB-MIGA': '#ffbb78'
         }
         
         fig1 = px.bar(
