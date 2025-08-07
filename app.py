@@ -160,6 +160,12 @@ if pagina == 'Deuda externa':
         df_filtrado = df_filtrado[df_filtrado['SC4'] == sc4]
     if sc2 is not None:
         df_filtrado = df_filtrado[df_filtrado['SC2'] == sc2]
+    # Filtro por rango de años
+    if 'Time' in df_filtrado.columns and not df_filtrado['Time'].empty:
+        min_year = int(df_filtrado['Time'].min())
+        max_year = int(df_filtrado['Time'].max())
+        year_range = st.sidebar.slider('Rango de años', min_year, max_year, (min_year, max_year), key='deuda_anos')
+        df_filtrado = df_filtrado[(df_filtrado['Time'] >= year_range[0]) & (df_filtrado['Time'] <= year_range[1])]
     # Tabla eliminada
 
     # Graficos para el país seleccionado con Plotly
@@ -230,6 +236,12 @@ elif pagina == 'Multilaterales':
     df_filtrado = df.copy()
     if sc2 is not None:
         df_filtrado = df_filtrado[df_filtrado['SC2'] == sc2]
+    # Filtro por rango de años
+    if 'Time' in df_filtrado.columns and not df_filtrado['Time'].empty:
+        min_year = int(df_filtrado['Time'].min())
+        max_year = int(df_filtrado['Time'].max())
+        year_range = st.sidebar.slider('Rango de años', min_year, max_year, (min_year, max_year), key='multilaterales_anos')
+        df_filtrado = df_filtrado[(df_filtrado['Time'] >= year_range[0]) & (df_filtrado['Time'] <= year_range[1])]
     # El dataframe filtrado por país se usará en los gráficos
     if pais in df_filtrado.columns:
         df_pais = df_filtrado[["Multilateral", "SC3", "Time", pais]].dropna()
@@ -322,6 +334,12 @@ elif pagina == 'Plazos y Tasas':
     df_filtrado = df[df['Multilateral'] == multilateral]
     if sc2 is not None:
         df_filtrado = df_filtrado[df_filtrado['SC2'] == sc2]
+    # Filtro por rango de años
+    if 'Time' in df_filtrado.columns and not df_filtrado['Time'].empty:
+        min_year = int(df_filtrado['Time'].min())
+        max_year = int(df_filtrado['Time'].max())
+        year_range = st.sidebar.slider('Rango de años', min_year, max_year, (min_year, max_year), key='plazos_anos')
+        df_filtrado = df_filtrado[(df_filtrado['Time'] >= year_range[0]) & (df_filtrado['Time'] <= year_range[1])]
     # Definir países
     pais_arg = 'Argentina [ARG]'
     paises_grupo = ['Brazil [BRA]', 'Bolivia [BOL]', 'Paraguay [PRY]']
@@ -413,9 +431,15 @@ elif pagina == 'Plazos y Tasas':
 
 elif pagina == 'Comprometido':
     st.title('Comprometido')
-    
+
     # Filtrar por SC2 = "Commitments"
     df_comprometido = df[df['SC2'] == 'Commitments'].copy()
+    # Filtro por rango de años
+    if 'Time' in df_comprometido.columns and not df_comprometido['Time'].empty:
+        min_year = int(df_comprometido['Time'].min())
+        max_year = int(df_comprometido['Time'].max())
+        year_range = st.sidebar.slider('Rango de años', min_year, max_year, (min_year, max_year), key='comprometido_anos')
+        df_comprometido = df_comprometido[(df_comprometido['Time'] >= year_range[0]) & (df_comprometido['Time'] <= year_range[1])]
     
     # Definir colores consistentes para multilaterales (mismo que en la página de multilaterales)
     multilateral_colors = {
