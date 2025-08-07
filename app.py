@@ -166,11 +166,30 @@ if pagina == 'Deuda externa':
     paises = [col for col in df.columns if '[' in col and ']' in col and not col.startswith('PIB') and not col.startswith('%')]
     pais = st.sidebar.selectbox('Selecciona país', paises)
     # Filtro adicional para SC4
-    sc4_options = df['SC4'].dropna().unique() if 'SC4' in df.columns else []
-    sc4 = st.sidebar.selectbox('Selecciona SC4', sc4_options) if len(sc4_options) > 0 else None
+    sc4_allowed = [
+        "General Government",
+        "Private Guaranteed by Public Sector",
+        "Public and Publicly Guaranteed",
+        "Public Sector",
+    ]
+    sc4_options = [
+        opt for opt in sc4_allowed if 'SC4' in df.columns and opt in df['SC4'].dropna().unique()
+    ]
+    sc4 = st.sidebar.selectbox('Selecciona SC4', sc4_options) if sc4_options else None
     # Filtro adicional para SC2
-    sc2_options = df['SC2'].dropna().unique() if 'SC2' in df.columns else []
-    sc2 = st.sidebar.selectbox('Selecciona SC2', sc2_options) if len(sc2_options) > 0 else None
+    sc2_allowed = [
+        "Debt outstanding and disbursed",
+        "Disbursements",
+        "interest payments",
+        "Net flows (DIS - AMT)",
+        "Net transfers (NFL - INT)",
+        "principal repayments",
+        "Total debt service (AMT + INT)",
+    ]
+    sc2_options = [
+        opt for opt in sc2_allowed if 'SC2' in df.columns and opt in df['SC2'].dropna().unique()
+    ]
+    sc2 = st.sidebar.selectbox('Selecciona SC2', sc2_options) if sc2_options else None
     df_filtrado = df.copy()
     if sc4 is not None:
         df_filtrado = df_filtrado[df_filtrado['SC4'] == sc4]
