@@ -195,6 +195,7 @@ if pagina == 'Deuda externa':
         df_filtrado = df_filtrado[df_filtrado['SC4'] == sc4]
     if sc2 is not None:
         df_filtrado = df_filtrado[df_filtrado['SC2'] == sc2]
+    df_filtrado = df_filtrado[df_filtrado['Time'] <= 2023]
     # Filtro por rango de años
     if 'Time' in df_filtrado.columns and not df_filtrado['Time'].empty:
         min_year = int(df_filtrado['Time'].min())
@@ -306,6 +307,7 @@ elif pagina == 'Multilaterales':
     df_filtrado = df.copy()
     if sc2 is not None:
         df_filtrado = df_filtrado[df_filtrado['SC2'] == sc2]
+    df_filtrado = df_filtrado[df_filtrado['Time'] <= 2023]
     # Filtro por rango de años
     if 'Time' in df_filtrado.columns and not df_filtrado['Time'].empty:
         min_year = int(df_filtrado['Time'].min())
@@ -413,6 +415,7 @@ elif pagina == 'Plazos y Tasas':
     df_filtrado = df[df['Multilateral'] == multilateral]
     if sc2 is not None:
         df_filtrado = df_filtrado[df_filtrado['SC2'] == sc2]
+    df_filtrado = df_filtrado[df_filtrado['Time'] <= 2023]
     # Filtro por rango de años
     if 'Time' in df_filtrado.columns and not df_filtrado['Time'].empty:
         min_year = int(df_filtrado['Time'].min())
@@ -522,6 +525,7 @@ elif pagina == 'Comprometido':
     # Filtrar por SC2 = "Commitments"
     df_comprometido = df[df['SC2'] == 'Commitments'].copy()
     df_comprometido = df_comprometido[~df_comprometido['Multilateral'].str.strip().str.lower().eq('world')]
+    df_comprometido = df_comprometido[df_comprometido['Time'] <= 2023]
     # Filtro por rango de años
     if 'Time' in df_comprometido.columns and not df_comprometido['Time'].empty:
         min_year = int(df_comprometido['Time'].min())
