@@ -124,15 +124,31 @@ df = load_data()
 # Sidebar para navegación
 st.sidebar.title('Navegación')
 st.sidebar.markdown('**IDS**')
-paginas = [
+
+# Funciones para manejar la navegación y limpiar selección
+def set_pagina_from_ids():
+    st.session_state['pagina'] = st.session_state['pagina_ids']
+    st.session_state['pagina_iati'] = None
+
+def set_pagina_from_iati():
+    st.session_state['pagina'] = st.session_state['pagina_iati']
+
+paginas_ids = [
     'Deuda externa',
     'Multilaterales',
     'Plazos y Tasas',
     'Comprometido',
     'Visor BDD',
-    'Transacciones',
 ]
-pagina = st.sidebar.radio('Ir a:', paginas)
+
+st.sidebar.radio('Ir a:', paginas_ids, key='pagina_ids', on_change=set_pagina_from_ids)
+
+st.sidebar.divider()
+st.sidebar.markdown('**IATI**')
+
+st.sidebar.radio('Ir a:', ['Transacciones'], key='pagina_iati', index=None, on_change=set_pagina_from_iati)
+
+pagina = st.session_state.get('pagina', st.session_state.get('pagina_ids', 'Deuda externa'))
 
 # Cargar datos IATI
 @st.cache_data
