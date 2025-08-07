@@ -267,6 +267,9 @@ elif pagina == 'Multilaterales':
 
     # Gráficos solo si hay datos para el país seleccionado
     if df_pais is not None and not df_pais.empty:
+        # Tomar el primer valor por año y multilateral para evitar duplicados
+        df_pais_agg = df_pais.groupby(['Time', 'Multilateral'])[pais].first().reset_index()
+        
         import plotly.express as px
         st.subheader(f'Gráficos para {pais}')
         st.markdown('**Serie temporal de deuda por Multilateral (Stacked Bar)**')
@@ -289,7 +292,7 @@ elif pagina == 'Multilaterales':
         }
         
         fig1 = px.bar(
-            df_pais,
+            df_pais_agg,
             x='Time',
             y=pais,
             color='Multilateral',
@@ -318,10 +321,10 @@ elif pagina == 'Multilaterales':
         st.plotly_chart(fig1, use_container_width=True)
         
         # Gráfico 100% stacked bar
-        total_por_anio = df_pais.groupby('Time')[pais].transform('sum')
-        df_pais['proporcion'] = df_pais[pais] / total_por_anio
+        total_por_anio = df_pais_agg.groupby('Time')[pais].transform('sum')
+        df_pais_agg['proporcion'] = df_pais_agg[pais] / total_por_anio
         fig2 = px.bar(
-            df_pais,
+            df_pais_agg,
             x='Time',
             y='proporcion',
             color='Multilateral',
@@ -374,9 +377,11 @@ elif pagina == 'Plazos y Tasas':
     col1, col2 = st.columns(2)
     
     if not df_arg.empty:
+        # Tomar el primer valor por año para evitar duplicados
+        df_arg_agg = df_arg.groupby('Time')[pais_arg].first().reset_index()
         with col1:
             st.markdown("<h3 style='text-align: center;'>Argentina</h3>", unsafe_allow_html=True)
-            fig_arg = px.bar(df_arg, x='Time', y=pais_arg, title='', color_discrete_sequence=['#fca311'], height=300)
+            fig_arg = px.bar(df_arg_agg, x='Time', y=pais_arg, title='', color_discrete_sequence=['#fca311'], height=300)
             fig_arg.update_xaxes(showgrid=False, tickangle=45)
             fig_arg.update_yaxes(showgrid=False)
             fig_arg.update_layout(title={'text': '', 'x': 0.5, 'xanchor': 'center'})
@@ -390,9 +395,11 @@ elif pagina == 'Plazos y Tasas':
     if bolivia_col in df_filtrado.columns:
         df_bolivia = df_filtrado[['Time', bolivia_col]].dropna()
         if not df_bolivia.empty:
+            # Tomar el primer valor por año para evitar duplicados
+            df_bolivia_agg = df_bolivia.groupby('Time')[bolivia_col].first().reset_index()
             with col2:
                 st.markdown("<h3 style='text-align: center;'>Bolivia</h3>", unsafe_allow_html=True)
-                fig_bolivia = px.bar(df_bolivia, x='Time', y=bolivia_col, title='', color_discrete_sequence=['#fca311'], height=300)
+                fig_bolivia = px.bar(df_bolivia_agg, x='Time', y=bolivia_col, title='', color_discrete_sequence=['#fca311'], height=300)
                 fig_bolivia.update_xaxes(showgrid=False, tickangle=45)
                 fig_bolivia.update_yaxes(showgrid=False)
                 fig_bolivia.update_layout(title={'text': '', 'x': 0.5, 'xanchor': 'center'})
@@ -412,9 +419,11 @@ elif pagina == 'Plazos y Tasas':
     if brasil_col in df_filtrado.columns:
         df_brasil = df_filtrado[['Time', brasil_col]].dropna()
         if not df_brasil.empty:
+            # Tomar el primer valor por año para evitar duplicados
+            df_brasil_agg = df_brasil.groupby('Time')[brasil_col].first().reset_index()
             with col3:
                 st.markdown("<h3 style='text-align: center;'>Brasil</h3>", unsafe_allow_html=True)
-                fig_brasil = px.bar(df_brasil, x='Time', y=brasil_col, title='', color_discrete_sequence=['#fca311'], height=300)
+                fig_brasil = px.bar(df_brasil_agg, x='Time', y=brasil_col, title='', color_discrete_sequence=['#fca311'], height=300)
                 fig_brasil.update_xaxes(showgrid=False, tickangle=45)
                 fig_brasil.update_yaxes(showgrid=False)
                 fig_brasil.update_layout(title={'text': '', 'x': 0.5, 'xanchor': 'center'})
@@ -431,9 +440,11 @@ elif pagina == 'Plazos y Tasas':
     if paraguay_col in df_filtrado.columns:
         df_paraguay = df_filtrado[['Time', paraguay_col]].dropna()
         if not df_paraguay.empty:
+            # Tomar el primer valor por año para evitar duplicados
+            df_paraguay_agg = df_paraguay.groupby('Time')[paraguay_col].first().reset_index()
             with col4:
                 st.markdown("<h3 style='text-align: center;'>Paraguay</h3>", unsafe_allow_html=True)
-                fig_paraguay = px.bar(df_paraguay, x='Time', y=paraguay_col, title='', color_discrete_sequence=['#fca311'], height=300)
+                fig_paraguay = px.bar(df_paraguay_agg, x='Time', y=paraguay_col, title='', color_discrete_sequence=['#fca311'], height=300)
                 fig_paraguay.update_xaxes(showgrid=False, tickangle=45)
                 fig_paraguay.update_yaxes(showgrid=False)
                 fig_paraguay.update_layout(title={'text': '', 'x': 0.5, 'xanchor': 'center'})
@@ -491,10 +502,12 @@ elif pagina == 'Comprometido':
         if 'Argentina [ARG]' in paises_disponibles:
             df_arg = df_comprometido[["Multilateral", "Time", "Argentina [ARG]"]].dropna()
             if not df_arg.empty:
+                # Tomar el primer valor por año y multilateral para evitar duplicados
+                df_arg_agg = df_arg.groupby(['Time', 'Multilateral'])['Argentina [ARG]'].first().reset_index()
                 with col1:
                     st.markdown("<h3 style='text-align: center;'>Argentina</h3>", unsafe_allow_html=True)
                     fig_arg = px.bar(
-                        df_arg,
+                        df_arg_agg,
                         x='Time',
                         y='Argentina [ARG]',
                         color='Multilateral',
@@ -523,10 +536,12 @@ elif pagina == 'Comprometido':
         if 'Bolivia [BOL]' in paises_disponibles:
             df_bol = df_comprometido[["Multilateral", "Time", "Bolivia [BOL]"]].dropna()
             if not df_bol.empty:
+                # Tomar el primer valor por año y multilateral para evitar duplicados
+                df_bol_agg = df_bol.groupby(['Time', 'Multilateral'])['Bolivia [BOL]'].first().reset_index()
                 with col2:
                     st.markdown("<h3 style='text-align: center;'>Bolivia</h3>", unsafe_allow_html=True)
                     fig_bol = px.bar(
-                        df_bol,
+                        df_bol_agg,
                         x='Time',
                         y='Bolivia [BOL]',
                         color='Multilateral',
@@ -558,10 +573,12 @@ elif pagina == 'Comprometido':
         if 'Brazil [BRA]' in paises_disponibles:
             df_bra = df_comprometido[["Multilateral", "Time", "Brazil [BRA]"]].dropna()
             if not df_bra.empty:
+                # Tomar el primer valor por año y multilateral para evitar duplicados
+                df_bra_agg = df_bra.groupby(['Time', 'Multilateral'])['Brazil [BRA]'].first().reset_index()
                 with col3:
                     st.markdown("<h3 style='text-align: center;'>Brasil</h3>", unsafe_allow_html=True)
                     fig_bra = px.bar(
-                        df_bra,
+                        df_bra_agg,
                         x='Time',
                         y='Brazil [BRA]',
                         color='Multilateral',
@@ -590,10 +607,12 @@ elif pagina == 'Comprometido':
         if 'Paraguay [PRY]' in paises_disponibles:
             df_pry = df_comprometido[["Multilateral", "Time", "Paraguay [PRY]"]].dropna()
             if not df_pry.empty:
+                # Tomar el primer valor por año y multilateral para evitar duplicados
+                df_pry_agg = df_pry.groupby(['Time', 'Multilateral'])['Paraguay [PRY]'].first().reset_index()
                 with col4:
                     st.markdown("<h3 style='text-align: center;'>Paraguay</h3>", unsafe_allow_html=True)
                     fig_pry = px.bar(
-                        df_pry,
+                        df_pry_agg,
                         x='Time',
                         y='Paraguay [PRY]',
                         color='Multilateral',
