@@ -7,6 +7,17 @@ from pandas.api.types import is_string_dtype
 from io import StringIO, BytesIO
 from macrosectores import get_macrosector
 
+# Paleta de colores para macro sectores
+MACRO_COLORS = [
+    "#001524",
+    "#15616D",
+    "#8AA79F",
+    "#FFECD1",
+    "#BC8B70",
+    "#78290F",
+    "#FF7D00",
+]
+
 
 @st.cache_data
 def load_sectores() -> pd.DataFrame:
@@ -77,6 +88,17 @@ def render():
         show_pct = st.checkbox("Mostrar % del total")
         log_scale = st.checkbox("Escala log en distribuciones")
         top_n = st.slider("Top N", 1, 50, 10)
+        subpage = st.radio(
+            "Subpáginas",
+            [
+                "Panorama de sectores",
+                "Comparador A vs B",
+                "Ficha de sector",
+                "Matrices de concentración",
+                "Intensidad y estructura",
+                "Tabla maestro",
+            ],
+        )
     # Apply filters
     mask = (df["year"].between(*year_range)) & (df["value_usd"].between(*value_range))
     if exclude_neg:
@@ -93,53 +115,55 @@ def render():
     if macro_selection:
         mask &= df["macro_sector"].isin(macro_selection)
     df_f = df[mask].copy()
+    df_f = df_f[df_f["macro_sector"].ne("No clasificado")]
     kpi_block(df_f)
 
-    tabs = st.tabs([
-        "Panorama de sectores",
-        "Comparador A vs B",
-        "Ficha de sector",
-        "Matrices de concentración",
-        "Intensidad y estructura",
-        "Tabla maestro",
-    ])
+    macros = sorted(df_f["macro_sector"].dropna().unique())
+    macro_color_map = {
+        macro: MACRO_COLORS[i % len(MACRO_COLORS)] for i, macro in enumerate(macros)
+    }
 
-    # -------- Tab 0: Panorama --------
-    with tabs[0]:
+    if subpage == "Panorama de sectores":
         df_macro = (
             df_f.groupby("macro_sector")
             .agg(value_usd=("value_usd", "sum"), ops=("iatiidentifier", "count"))
             .sort_values("value_usd", ascending=False)
         )
+        df_macro["value_usd"] = df_macro["value_usd"] / 1e6
         df_macro["ticket"] = df_macro["value_usd"] / df_macro["ops"]
         df_top = df_macro.head(top_n).reset_index()
-        fig_bar = px.bar(
-            df_top,
-            x="value_usd",
-            y="macro_sector",
-            orientation="h",
-            labels={"value_usd": "USD", "macro_sector": "Macro sector"},
-            hover_data={"value_usd":":.2f","ops":True,"ticket":":.2f"},
-        )
-        fig_bar.update_layout(yaxis={"categoryorder": "total ascending"})
-        st.plotly_chart(fig_bar, use_container_width=True)
-
-        df_donut = df_macro.reset_index()
-        if show_pct and df_donut["value_usd"].sum() != 0:
-            df_donut["value"] = df_donut["value_usd"] / df_donut["value_usd"].sum() * 100
-            value_col = "value"
-            hover_template = "%{label}: %{value:.1f}%"
-        else:
-            value_col = "value_usd"
-            hover_template = "%{label}: %{value:,.2f}"
-        fig_donut = px.pie(
-            df_donut,
-            names="macro_sector",
-            values=value_col,
-            hole=0.4,
-        )
-        fig_donut.update_traces(hovertemplate=hover_template)
-        st.plotly_chart(fig_donut, use_container_width=True)
+        col_bar, col_donut = st.columns(2)
+        with col_bar:
+            fig_bar = px.bar(
+                df_top,
+                x="value_usd",
+                y="macro_sector",
+                orientation="h",
+                labels={"value_usd": "USD (millones)", "macro_sector": "Macro sector"},
+                hover_data={"value_usd":":.2f","ops":True,"ticket":":.2f"},
+                color_discrete_sequence=["#fca311"],
+            )
+            fig_bar.update_layout(yaxis={"categoryorder": "total ascending"})
+            st.plotly_chart(fig_bar, use_container_width=True)
+        with col_donut:
+            df_donut = df_macro.reset_index()
+            if show_pct and df_donut["value_usd"].sum() != 0:
+                df_donut["value"] = df_donut["value_usd"] / df_donut["value_usd"].sum() * 100
+                value_col = "value"
+                hover_template = "%{label}: %{value:.1f}%"
+            else:
+                value_col = "value_usd"
+                hover_template = "%{label}: %{value:,.2f} millones"
+            fig_donut = px.pie(
+                df_donut,
+                names="macro_sector",
+                values=value_col,
+                hole=0.4,
+                color="macro_sector",
+                color_discrete_map=macro_color_map,
+            )
+            fig_donut.update_traces(hovertemplate=hover_template)
+            st.plotly_chart(fig_donut, use_container_width=True)
 
         top_macros = df_macro.head(top_n).index
         df_year_macro = (
@@ -149,22 +173,27 @@ def render():
         )
         if show_pct:
             total_year = df_f.groupby("year")["value_usd"].sum().reset_index()
-            df_year_macro = df_year_macro.merge(total_year, on="year", suffixes=("", "_total"))
-            df_year_macro["value_usd"] = df_year_macro["value_usd"] / df_year_macro["value_usd_total"] * 100
+            df_year_macro = df_year_macro.merge(
+                total_year, on="year", suffixes=("", "_total")
+            )
+            df_year_macro["value_usd"] = (
+                df_year_macro["value_usd"] / df_year_macro["value_usd_total"] * 100
+            )
             y_label = "% del total"
         else:
-            y_label = "USD"
+            df_year_macro["value_usd"] = df_year_macro["value_usd"] / 1e6
+            y_label = "USD (millones)"
         fig_area = px.area(
             df_year_macro,
             x="year",
             y="value_usd",
             color="macro_sector",
             labels={"year": "Año", "value_usd": y_label, "macro_sector": "Macro sector"},
+            color_discrete_map=macro_color_map,
         )
         st.plotly_chart(fig_area, use_container_width=True)
 
-    # -------- Tab 1: Comparador A vs B --------
-    with tabs[1]:
+    elif subpage == "Comparador A vs B":
         sector_list = sorted(df_f["macro_sector"].dropna().unique())
         col1, col2 = st.columns(2)
         with col1:
@@ -176,39 +205,52 @@ def render():
             .groupby(["year", "macro_sector"])["value_usd"].sum()
             .reset_index()
         )
-        fig_line = px.line(comp_df, x="year", y="value_usd", color="macro_sector")
+        comp_df["value_usd"] = comp_df["value_usd"] / 1e6
+        fig_line = px.line(
+            comp_df,
+            x="year",
+            y="value_usd",
+            color="macro_sector",
+            labels={"value_usd": "USD (millones)", "year": "Año", "macro_sector": "Macro sector"},
+            color_discrete_map=macro_color_map,
+        )
         st.plotly_chart(fig_line, use_container_width=True)
         col_a, col_b = st.columns(2)
         for col, sector in zip((col_a, col_b), (sector_a, sector_b)):
             s_df = df_f[df_f["macro_sector"] == sector]
-            total = s_df["value_usd"].sum()
+            total = s_df["value_usd"].sum() / 1e6
             ops = len(s_df)
             ticket = total / ops if ops else 0
-            median = s_df["value_usd"].median() if ops else 0
+            median = s_df["value_usd"].median() / 1e6 if ops else 0
             countries = s_df["recipientcountry_codename"].nunique()
             col.markdown(
-                f"**{sector}**\n\n- Total: {total:,.2f}\n- #ops: {ops}\n- Ticket promedio: {ticket:,.2f}\n- Mediana: {median:,.2f}\n- # Países: {countries}"
+                f"**{sector}**\n\n- Total: {total:,.2f} millones\n- #ops: {ops}\n- Ticket promedio: {ticket:,.2f} millones\n- Mediana: {median:,.2f} millones\n- # Países: {countries}"
             )
 
-    # -------- Tab 2: Ficha de sector --------
-    with tabs[2]:
+    elif subpage == "Ficha de sector":
         sector_totals = (
             df_f.groupby("macro_sector")["value_usd"].sum().sort_values(ascending=False)
+            / 1e6
         )
         default_sector = sector_totals.index[0] if not sector_totals.empty else None
         sector_sel = st.selectbox(
             "Macro sector", sector_totals.index.tolist(), index=0 if default_sector else None
         )
-        sec_df = df_f[df_f["macro_sector"] == sector_sel]
+        sec_df = df_f[df_f["macro_sector"] == sector_sel].copy()
+        sec_df["value_usd"] = sec_df["value_usd"] / 1e6
         top_countries = (
-            sec_df.groupby("recipientcountry_codename")["value_usd"].sum().sort_values(ascending=False).head(top_n).reset_index()
+            sec_df.groupby("recipientcountry_codename")["value_usd"]
+            .sum()
+            .sort_values(ascending=False)
+            .head(top_n)
+            .reset_index()
         )
         fig_country = px.bar(
             top_countries,
             x="value_usd",
             y="recipientcountry_codename",
             orientation="h",
-            labels={"value_usd": "USD", "recipientcountry_codename": "País"},
+            labels={"value_usd": "USD (millones)", "recipientcountry_codename": "País"},
         )
         fig_country.update_layout(yaxis={"categoryorder": "total ascending"})
         st.plotly_chart(fig_country, use_container_width=True)
@@ -216,10 +258,15 @@ def render():
         top_sources = (
             sec_df.groupby("source")["value_usd"].sum().sort_values(ascending=False).head(top_n).reset_index()
         )
-        fig_source = px.bar(top_sources, x="source", y="value_usd", labels={"value_usd": "USD", "source": "Fuente"})
+        fig_source = px.bar(
+            top_sources,
+            x="source",
+            y="value_usd",
+            labels={"value_usd": "USD (millones)", "source": "Fuente"},
+        )
         st.plotly_chart(fig_source, use_container_width=True)
 
-        fig_dist = px.box(sec_df, y="value_usd")
+        fig_dist = px.box(sec_df, y="value_usd", labels={"value_usd": "USD (millones)"})
         if log_scale:
             fig_dist.update_yaxes(type="log")
         st.plotly_chart(fig_dist, use_container_width=True)
@@ -241,10 +288,13 @@ def render():
             "Descargar Excel", excel.getvalue(), file_name="operaciones_sector.xlsx", mime="application/vnd.ms-excel"
         )
 
-    # -------- Tab 3: Matrices --------
-    with tabs[3]:
+    elif subpage == "Matrices de concentración":
         top_countries = (
-            df_f.groupby("recipientcountry_codename")["value_usd"].sum().sort_values(ascending=False).head(top_n).index
+            df_f.groupby("recipientcountry_codename")["value_usd"]
+            .sum()
+            .sort_values(ascending=False)
+            .head(top_n)
+            .index
         )
         pivot = (
             df_f[df_f["recipientcountry_codename"].isin(top_countries)]
@@ -256,7 +306,10 @@ def render():
                 fill_value=0,
             )
         )
-        fig_heat = go.Figure(data=go.Heatmap(z=pivot.values, x=pivot.columns, y=pivot.index))
+        pivot = pivot / 1e6
+        fig_heat = go.Figure(
+            data=go.Heatmap(z=pivot.values, x=pivot.columns, y=pivot.index, colorbar=dict(title="USD (millones)"))
+        )
         st.plotly_chart(fig_heat, use_container_width=True)
 
         pivot2 = (
@@ -268,15 +321,17 @@ def render():
                 fill_value=0,
             )
         )
-        fig_heat2 = go.Figure(data=go.Heatmap(z=pivot2.values, x=pivot2.columns, y=pivot2.index))
+        pivot2 = pivot2 / 1e6
+        fig_heat2 = go.Figure(
+            data=go.Heatmap(z=pivot2.values, x=pivot2.columns, y=pivot2.index, colorbar=dict(title="USD (millones)"))
+        )
         st.plotly_chart(fig_heat2, use_container_width=True)
 
-    # -------- Tab 4: Intensidad y estructura --------
-    with tabs[4]:
+    elif subpage == "Intensidad y estructura":
         bubble_df = (
             df_f.groupby("macro_sector").agg(
-                sum_usd=("value_usd", "sum"),
-                mean_usd=("value_usd", "mean"),
+                sum_usd=("value_usd", lambda x: x.sum() / 1e6),
+                mean_usd=("value_usd", lambda x: x.mean() / 1e6),
                 ops=("iatiidentifier", "count"),
             )
         ).reset_index()
@@ -285,24 +340,23 @@ def render():
             x="mean_usd",
             y="sum_usd",
             size="ops",
+            color="macro_sector",
             hover_name="macro_sector",
-            labels={"mean_usd": "Ticket promedio", "sum_usd": "Total USD", "ops": "# ops"},
+            labels={"mean_usd": "Ticket promedio (millones)", "sum_usd": "Total USD (millones)", "ops": "# ops"},
+            color_discrete_map=macro_color_map,
         )
         st.plotly_chart(fig_bubble, use_container_width=True)
 
         sankey_df = (
             df_f.groupby(["source", "macro_sector", "recipientcountry_codename"])["value_usd"].sum().reset_index()
         )
+        sankey_df["value_usd"] = sankey_df["value_usd"] / 1e6
         sources_nodes = sankey_df["source"].unique().tolist()
         macro_nodes = sankey_df["macro_sector"].unique().tolist()
         country_nodes = sankey_df["recipientcountry_codename"].unique().tolist()
         nodes = sources_nodes + macro_nodes + country_nodes
         node_indices = {name: i for i, name in enumerate(nodes)}
-        links = {
-            "source": [],
-            "target": [],
-            "value": [],
-        }
+        links = {"source": [], "target": [], "value": []}
         for row in sankey_df.itertuples():
             links["source"].append(node_indices[row.source])
             links["target"].append(node_indices[row.macro_sector])
@@ -314,15 +368,12 @@ def render():
         fig_sankey = go.Figure(
             go.Sankey(
                 node=dict(label=nodes),
-                link=dict(
-                    source=links["source"], target=links["target"], value=links["value"]
-                ),
+                link=dict(source=links["source"], target=links["target"], value=links["value"]),
             )
         )
         st.plotly_chart(fig_sankey, use_container_width=True)
 
-    # -------- Tab 5: Tabla maestro --------
-    with tabs[5]:
+    elif subpage == "Tabla maestro":
         cols = [
             "iatiidentifier",
             "transactiondate_isodate",
