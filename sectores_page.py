@@ -293,14 +293,17 @@ def render():
                 fill_value=0,
             )
         )
-        pivot = pivot / 1e6
+        pivot = pivot.div(pivot.sum(axis=0), axis=1).fillna(0) * 100
         fig_heat = go.Figure(
             data=go.Heatmap(
                 z=pivot.values,
                 x=pivot.columns,
                 y=pivot.index,
-                colorbar=dict(title="USD (millones)"),
+                colorbar=dict(title="Participación (%)"),
                 colorscale="YlOrRd",
+                zmin=0,
+                zmax=100,
+                hovertemplate="%{y} - %{x}: %{z:.1f}%<extra></extra>",
             )
         )
         st.plotly_chart(fig_heat, use_container_width=True)
@@ -314,14 +317,17 @@ def render():
                 fill_value=0,
             )
         )
-        pivot2 = pivot2 / 1e6
+        pivot2 = pivot2.div(pivot2.sum(axis=1), axis=0).fillna(0) * 100
         fig_heat2 = go.Figure(
             data=go.Heatmap(
                 z=pivot2.values,
                 x=pivot2.columns,
                 y=pivot2.index,
-                colorbar=dict(title="USD (millones)"),
+                colorbar=dict(title="Participación (%)"),
                 colorscale="YlOrRd",
+                zmin=0,
+                zmax=100,
+                hovertemplate="%{y} - %{x}: %{z:.1f}%<extra></extra>",
             )
         )
         st.plotly_chart(fig_heat2, use_container_width=True)
