@@ -6,6 +6,8 @@ proporciona una función para identificar el macro sector al que
 pertenece un sector específico. De esta forma el mismo diccionario
 puede reutilizarse en las distintas páginas y gráficos de la
 aplicación.
+
+Incluye 44 adiciones detectadas como faltantes en la BDD.
 """
 
 from __future__ import annotations
@@ -76,6 +78,61 @@ macrosectores_dict = {
     ]
 }
 
+# ---- ADICIONES (44) DETECTADAS EN LA BDD ----
+_ADDITIONS = [
+    ("Gobernanza/Público", "Government & Civil Society-general"),
+    ("Gobernanza/Público", "Water sector policy and administrative management"),
+    ("Infraestructura", "Biofuel-fired power plants"),
+    ("Infraestructura", "Communications"),
+    ("Infraestructura", "Education and training in water supply and sanitation"),
+    ("Infraestructura", "Electrical transmission/ distribution"),
+    ("Infraestructura", "Employment creation"),
+    ("Infraestructura", "Energy generation, non-renewable sources, unspecified"),
+    ("Infraestructura", "Information services"),
+    ("Infraestructura", "Power generation/non-renewable sources"),
+    ("Infraestructura", "Power generation/renewable sources"),
+    ("Infraestructura", "Public Procurement"),
+    ("Infraestructura", "Public finance management (PFM)"),
+    ("Infraestructura", "Road transport"),
+    ("Infraestructura", "Trade facilitation"),
+    ("Infraestructura", "Trade policy and administrative management"),
+    ("Infraestructura", "Urban development and management"),
+    ("Multisectorial/Otros", "Decentralisation and support to subnational government"),
+    ("Multisectorial/Otros", "Education, Level Unspecified"),
+    ("Multisectorial/Otros", "Multisector aid"),
+    ("Multisectorial/Otros", "Other Social Infrastructure & Services"),
+    ("Multisectorial/Otros", "Plant and post-harvest protection and pest control"),
+    ("Productivo", "Agriculture"),
+    ("Productivo", "Domestic revenue mobilisation"),
+    ("Productivo", "Energy policy and administrative management"),
+    ("Productivo", "Fishery research"),
+    ("Productivo", "Forestry research"),
+    ("Productivo", "Forestry services"),
+    ("Productivo", "Industry"),
+    ("Productivo", "Legal and judicial development"),
+    ("Productivo", "Livestock/veterinary services"),
+    ("Productivo", "Mineral/mining policy and administrative management"),
+    ("Social", "Advanced technical and managerial training"),
+    ("Social", "Coal"),
+    ("Social", "Communications policy and administrative management"),
+    ("Social", "Food crop production"),
+    ("Social", "Health, General"),
+    ("Social", "Infectious disease control"),
+    ("Social", "Mineral prospection and exploration"),
+    ("Social", "Narcotics control"),
+    ("Social", "Population policy and administrative management"),
+    ("Social", "Primary education"),
+    ("Social", "Social mitigation of HIV/AIDS"),
+    ("Social", "Statistical capacity building"),
+]
+
+# Aplicar adiciones sin duplicar elementos existentes
+for _macro, _name in _ADDITIONS:
+    if _macro not in macrosectores_dict:
+        macrosectores_dict[_macro] = []
+    if _name not in macrosectores_dict[_macro]:
+        macrosectores_dict[_macro].append(_name)
+
 # Crear un mapa normalizado para búsqueda rápida
 _MACRO_LOOKUP = {
     _normalize(sector): macro
@@ -87,4 +144,3 @@ _MACRO_LOOKUP = {
 def get_macrosector(sector_name: str) -> str:
     """Retorna el macrosector correspondiente a un nombre de sector."""
     return _MACRO_LOOKUP.get(_normalize(sector_name), "No clasificado")
-
