@@ -36,6 +36,8 @@ def load_sectores() -> pd.DataFrame:
 def render():
     df = load_sectores()
     min_year, max_year = int(df["year"].min()), int(df["year"].max())
+    source_list = sorted(df["source"].dropna().unique())
+    selected_sources = source_list
     with st.sidebar:
         year_range = st.slider("Año", min_year, max_year, (min_year, max_year), step=1)
         subpage = st.radio(
@@ -49,10 +51,16 @@ def render():
                 "Tabla maestro",
             ],
         )
+        if subpage == "Panorama de sectores":
+            selected_sources = st.multiselect(
+                "MDBs", source_list, default=source_list
+            )
     # Apply filters
     mask = (df["year"].between(*year_range)) & (df["value_usd"] >= 0)
     df_f = df[mask].copy()
     df_f = df_f[df_f["macro_sector"].ne("No clasificado")]
+    if subpage == "Panorama de sectores" and selected_sources:
+        df_f = df_f[df_f["source"].isin(selected_sources)]
     top_n = 10
 
     macros = sorted(df_f["macro_sector"].dropna().unique())
