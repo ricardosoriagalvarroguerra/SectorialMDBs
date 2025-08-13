@@ -432,17 +432,10 @@ def render():
         # "MDBs" y "Países" seleccionados arriba, por lo que se construye a
         # partir de la base completa de datos filtrada solo por el rango de
         # años y países permitidos.
-        sankey_df = (
-            df_base.groupby(["source", "macro_sector", "recipientcountry_codename"])[
-                "value_usd"
-            ]
-            .sum()
-            .reset_index()
-        )
-        sankey_df["value_usd"] = sankey_df["value_usd"] / 1e6
-        if not sankey_df.empty:
-            min_val = float(sankey_df["value_usd"].min())
-            max_val = float(sankey_df["value_usd"].max())
+        sankey_base = df_base.copy()
+        if not sankey_base.empty:
+            min_val = float(sankey_base["value_usd"].min() / 1e6)
+            max_val = float(sankey_base["value_usd"].max() / 1e6)
             col_range = st.columns(2)
             with col_range[0]:
                 min_select = st.number_input(
@@ -461,9 +454,19 @@ def render():
             if min_select > max_select:
                 st.warning("El monto mínimo no puede ser mayor que el máximo")
             else:
-                sankey_df = sankey_df[
-                    sankey_df["value_usd"].between(min_select, max_select)
+                sankey_base = sankey_base[
+                    sankey_base["value_usd"].between(
+                        min_select * 1e6, max_select * 1e6
+                    )
                 ]
+        sankey_df = (
+            sankey_base.groupby(
+                ["source", "macro_sector", "recipientcountry_codename"]
+            )["value_usd"]
+            .sum()
+            .reset_index()
+        )
+        sankey_df["value_usd"] = sankey_df["value_usd"] / 1e6
         sources_nodes = sankey_df["source"].unique().tolist()
         macro_nodes = sankey_df["macro_sector"].unique().tolist()
         country_nodes = sankey_df["recipientcountry_codename"].unique().tolist()
