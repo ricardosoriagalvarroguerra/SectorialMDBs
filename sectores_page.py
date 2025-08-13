@@ -197,6 +197,34 @@ def render():
             )
             st.plotly_chart(fig_source, use_container_width=True)
 
+        st.subheader("Detalle por país")
+        focus_codes = ["AR", "BR", "BO", "PY", "UY"]
+        for code in focus_codes:
+            country_df = sec_df[sec_df["recipientcountry_code"] == code]
+            if country_df.empty:
+                continue
+            country_name = country_df["recipientcountry_codename"].iloc[0]
+            total_ops = country_df["iatiidentifier"].nunique()
+            st.markdown(f"### {country_name} ({total_ops} actividades)")
+            summary = (
+                country_df.groupby("source")
+                .agg(
+                    actividades=("iatiidentifier", "count"),
+                    ticket_promedio=("value_usd", "mean"),
+                    monto=("value_usd", "sum"),
+                )
+                .sort_values("monto", ascending=False)
+                .head(4)
+            )
+            summary = summary.rename(
+                columns={
+                    "actividades": "# actividades",
+                    "ticket_promedio": "Ticket prom. (millones USD)",
+                    "monto": "Monto (millones USD)",
+                }
+            )
+            st.dataframe(summary, use_container_width=True)
+
     elif subpage == "Matrices de concentración":
         focus_countries = ["AR", "BO", "BR", "PY", "UY"]
         df_focus = df_f[df_f["recipientcountry_code"].isin(focus_countries)]
