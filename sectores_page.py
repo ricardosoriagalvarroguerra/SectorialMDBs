@@ -374,7 +374,7 @@ def render():
 
     # -------- Tab 1: Comparador A vs B --------
     with tabs[1]:
-        sector_list = sorted(df_f["sector_codename"].unique())
+        sector_list = sorted(df_f["sector_codename"].dropna().unique())
         col1, col2 = st.columns(2)
         with col1:
             sector_a = st.selectbox("Sector A", sector_list, key="sector_a")
