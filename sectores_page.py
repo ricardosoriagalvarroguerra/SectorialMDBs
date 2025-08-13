@@ -316,16 +316,29 @@ def render():
         st.plotly_chart(fig_heat2, use_container_width=True)
 
     elif subpage == "Intensidad y estructura":
-        source_opts = sorted(df_f["source"].dropna().unique())
-        country_opts = sorted(df_f["recipientcountry_codename"].dropna().unique())
+        allowed_codes = ["AR", "BO", "BR", "PY", "UY"]
+        df_base = df_f[df_f["recipientcountry_code"].isin(allowed_codes)]
+        source_opts = sorted(df_base["source"].dropna().unique())
+        country_map = (
+            df_base[["recipientcountry_code", "recipientcountry_codename"]]
+            .drop_duplicates()
+            .set_index("recipientcountry_code")["recipientcountry_codename"]
+        )
+        country_opts = [country_map[c] for c in allowed_codes if c in country_map]
         col_filters = st.columns(2)
         with col_filters[0]:
-            selected_sources = st.multiselect("MDBs", source_opts, default=source_opts)
+            all_sources = st.checkbox("Todos los MDBs", value=True)
+            selected_sources = st.multiselect("MDBs", source_opts)
+            if all_sources or not selected_sources:
+                selected_sources = source_opts
         with col_filters[1]:
-            selected_countries = st.multiselect("Países", country_opts, default=country_opts)
-        df_focus = df_f[
-            df_f["source"].isin(selected_sources)
-            & df_f["recipientcountry_codename"].isin(selected_countries)
+            all_countries = st.checkbox("Todos los países", value=True)
+            selected_countries = st.multiselect("Países", country_opts)
+            if all_countries or not selected_countries:
+                selected_countries = country_opts
+        df_focus = df_base[
+            df_base["source"].isin(selected_sources)
+            & df_base["recipientcountry_codename"].isin(selected_countries)
         ]
         bubble_df = (
             df_focus.groupby("macro_sector").agg(
@@ -353,10 +366,27 @@ def render():
         if not sankey_df.empty:
             min_val = float(sankey_df["value_usd"].min())
             max_val = float(sankey_df["value_usd"].max())
-            val_range = st.slider(
-                "Rango de monto (millones USD)", min_val, max_val, (min_val, max_val)
-            )
-            sankey_df = sankey_df[sankey_df["value_usd"].between(*val_range)]
+            col_range = st.columns(2)
+            with col_range[0]:
+                min_select = st.number_input(
+                    "Monto mínimo (millones USD)",
+                    value=min_val,
+                    min_value=min_val,
+                    max_value=max_val,
+                )
+            with col_range[1]:
+                max_select = st.number_input(
+                    "Monto máximo (millones USD)",
+                    value=max_val,
+                    min_value=min_val,
+                    max_value=max_val,
+                )
+            if min_select > max_select:
+                st.warning("El monto mínimo no puede ser mayor que el máximo")
+            else:
+                sankey_df = sankey_df[
+                    sankey_df["value_usd"].between(min_select, max_select)
+                ]
         sources_nodes = sankey_df["source"].unique().tolist()
         macro_nodes = sankey_df["macro_sector"].unique().tolist()
         country_nodes = sankey_df["recipientcountry_codename"].unique().tolist()
