@@ -6,6 +6,12 @@ from pandas.api.types import is_string_dtype
 from io import BytesIO
 from macrosectores import get_macrosector
 
+# Utilidad para manejar multiselect con opción "Seleccionar todo"
+def handle_multiselect_behavior(selected_options, all_options, select_all_text):
+    if not selected_options or select_all_text in selected_options:
+        return all_options
+    return [opt for opt in selected_options if opt != select_all_text]
+
 # Paleta de colores para macro sectores
 MACRO_COLORS = [
     "#001524",
@@ -338,26 +344,66 @@ def render():
         country_opts = [country_map[c] for c in allowed_codes if c in country_map]
         col_filters = st.columns(2)
         with col_filters[0]:
-            all_sources = st.checkbox("Todos los MDBs", value=True)
-            selected_sources = st.multiselect("MDBs", source_opts)
-            if all_sources or not selected_sources:
-                selected_sources = source_opts
+            source_sel = st.multiselect(
+                "MDBs",
+                ["Todos los MDBs"] + source_opts,
+                default=["Todos los MDBs"],
+            )
+            selected_sources = handle_multiselect_behavior(
+                source_sel, source_opts, "Todos los MDBs"
+            )
         with col_filters[1]:
-            all_countries = st.checkbox("Todos los países", value=True)
-            selected_countries = st.multiselect("Países", country_opts)
-            if all_countries or not selected_countries:
-                selected_countries = country_opts
+            country_sel = st.multiselect(
+                "Países",
+                ["Todos los países"] + country_opts,
+                default=["Todos los países"],
+            )
+            selected_countries = handle_multiselect_behavior(
+                country_sel, country_opts, "Todos los países"
+            )
         df_focus = df_base[
             df_base["source"].isin(selected_sources)
             & df_base["recipientcountry_codename"].isin(selected_countries)
         ]
+        group_cols = ["macro_sector"]
+        symbol_col = None
+        if len(selected_sources) > 1 and len(selected_countries) > 1:
+            group_cols += ["source", "recipientcountry_codename"]
+            symbol_col = "grupo"
+        elif len(selected_sources) > 1:
+            group_cols.append("source")
+            symbol_col = "source"
+        elif len(selected_countries) > 1:
+            group_cols.append("recipientcountry_codename")
+            symbol_col = "recipientcountry_codename"
         bubble_df = (
-            df_focus.groupby("macro_sector").agg(
+            df_focus.groupby(group_cols).agg(
                 sum_usd=("value_usd", lambda x: x.sum() / 1e6),
                 mean_usd=("value_usd", lambda x: x.mean() / 1e6),
                 ops=("iatiidentifier", "count"),
             )
         ).reset_index()
+        if symbol_col == "grupo":
+            bubble_df["grupo"] = (
+                bubble_df["source"] + " - " + bubble_df["recipientcountry_codename"]
+            )
+        symbol_map = None
+        if symbol_col:
+            symbols = [
+                "circle",
+                "square",
+                "diamond",
+                "cross",
+                "x",
+                "triangle-up",
+                "triangle-down",
+                "triangle-left",
+                "triangle-right",
+            ]
+            symbol_map = {
+                name: symbols[i % len(symbols)]
+                for i, name in enumerate(bubble_df[symbol_col].unique())
+            }
         fig_bubble = px.scatter(
             bubble_df,
             x="mean_usd",
@@ -365,8 +411,14 @@ def render():
             size="ops",
             color="macro_sector",
             hover_name="macro_sector",
-            labels={"mean_usd": "Ticket promedio (millones)", "sum_usd": "Total USD (millones)", "ops": "# ops"},
+            labels={
+                "mean_usd": "Ticket promedio (millones)",
+                "sum_usd": "Total USD (millones)",
+                "ops": "# ops",
+            },
             color_discrete_map=macro_color_map,
+            symbol=symbol_col,
+            symbol_map=symbol_map,
         )
         st.plotly_chart(fig_bubble, use_container_width=True)
 
