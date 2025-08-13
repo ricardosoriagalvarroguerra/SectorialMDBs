@@ -312,8 +312,15 @@ def render():
         link_colors = []
         links = {"source": [], "target": [], "value": [], "color": link_colors}
         source_palette = px.colors.qualitative.Plotly
+        custom_colors = {
+            "FONPLATA": "#c1121f",
+            "IADB": "#006494",
+            "WorldBank": "#1b4965",
+            "CAF": "#38b000",
+        }
         source_color_map = {
-            s: source_palette[i % len(source_palette)] for i, s in enumerate(sources_nodes)
+            s: custom_colors.get(s, source_palette[i % len(source_palette)])
+            for i, s in enumerate(sources_nodes)
         }
         for row in sankey_df.itertuples():
             color = source_color_map[row.source]
