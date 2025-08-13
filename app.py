@@ -146,7 +146,8 @@ st.sidebar.radio('Ir a:', paginas_ids, key='pagina_ids', on_change=set_pagina_fr
 st.sidebar.divider()
 st.sidebar.markdown('**IATI**')
 
-st.sidebar.radio('Ir a:', ['Transacciones'], key='pagina_iati', index=None, on_change=set_pagina_from_iati)
+paginas_iati = ['Transacciones', 'Sectores']
+st.sidebar.radio('Ir a:', paginas_iati, key='pagina_iati', index=None, on_change=set_pagina_from_iati)
 
 pagina = st.session_state.get('pagina', st.session_state.get('pagina_ids', 'Deuda externa'))
 
@@ -159,6 +160,16 @@ def load_iati_data():
         return None
 
 df_iati = load_iati_data()
+
+# Cargar datos de Sectores IATI
+@st.cache_data
+def load_sectores_data():
+    try:
+        return pd.read_parquet('sectores.parquet')
+    except:
+        return None
+
+df_sectores = load_sectores_data()
 
 if pagina == 'Deuda externa':
     st.title('Deuda externa')
@@ -1241,3 +1252,74 @@ elif pagina == 'Transacciones':
                     st.info("No se encontraron transacciones de tipo 'Outgoing Commitment'.")
             else:
                 st.error("No se pudieron cargar los datos IATI. Verifique que el archivo 'BDDGLOBALMERGED_ACTUALIZADO.parquet' esté disponible.")
+
+elif pagina == 'Sectores':
+    st.title('Sectores IATI')
+    st.markdown('---')
+
+    if df_sectores is not None:
+        df_sectores['transactiondate_isodate'] = pd.to_datetime(df_sectores['transactiondate_isodate'])
+        min_year = int(df_sectores['transactiondate_isodate'].dt.year.min())
+        max_year = int(df_sectores['transactiondate_isodate'].dt.year.max())
+        selected_years = st.sidebar.slider(
+            'Rango de Años:',
+            min_value=min_year,
+            max_value=max_year,
+            value=(min_year, max_year),
+            step=1,
+            key='sectores_years'
+        )
+        df_filtered = df_sectores[
+            (df_sectores['transactiondate_isodate'].dt.year >= selected_years[0]) &
+            (df_sectores['transactiondate_isodate'].dt.year <= selected_years[1])
+        ]
+
+        selected_region = st.sidebar.selectbox(
+            'Seleccionar Región:',
+            ['Todas las regiones'] + list(regiones_dict.keys()),
+            index=0,
+            key='sectores_region'
+        )
+        if selected_region != 'Todas las regiones':
+            paises_region = regiones_dict[selected_region]
+            df_filtered = df_filtered[df_filtered['recipientcountry_codename'].isin(paises_region)]
+
+        countries = sorted(df_filtered['recipientcountry_codename'].dropna().astype(str).unique())
+        countries_with_all = ['Todos'] + countries
+        selected_countries = st.sidebar.multiselect(
+            'Seleccionar Países:',
+            options=countries_with_all,
+            default=['Todos'],
+            key='sectores_countries_multiselect'
+        )
+        final_countries = handle_multiselect_behavior(selected_countries, countries, 'Todos')
+        df_filtered = df_filtered[df_filtered['recipientcountry_codename'].astype(str).isin(final_countries)]
+
+        df_filtered['macrosector'] = df_filtered['sector_codename'].apply(get_macrosector)
+        df_filtered = df_filtered[df_filtered['macrosector'] != 'No clasificado']
+
+        if not df_filtered.empty:
+            df_agg = df_filtered.groupby('macrosector')['value_usd'].sum().reset_index()
+            df_agg['value_usd_millions'] = df_agg['value_usd'] / 1_000_000
+
+            import plotly.express as px
+            fig = px.bar(
+                df_agg,
+                x='macrosector',
+                y='value_usd_millions',
+                labels={'macrosector': 'Macrosector', 'value_usd_millions': 'Valor USD (millones)'},
+                title='Financiamiento por Macrosector'
+            )
+            fig.update_xaxes(showgrid=False)
+            fig.update_yaxes(showgrid=False)
+            st.plotly_chart(fig, use_container_width=True)
+
+            st.dataframe(
+                df_agg[['macrosector', 'value_usd_millions']].rename(
+                    columns={'macrosector': 'Macrosector', 'value_usd_millions': 'Valor USD (millones)'}
+                )
+            )
+        else:
+            st.info('No hay datos disponibles para los filtros seleccionados.')
+    else:
+        st.error("No se pudieron cargar los datos de sectores. Verifique que el archivo 'sectores.parquet' esté disponible.")
