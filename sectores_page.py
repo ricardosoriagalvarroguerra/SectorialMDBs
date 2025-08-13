@@ -234,6 +234,7 @@ def render():
             st.dataframe(summary, use_container_width=True)
 
     elif subpage == "Matrices de concentración":
+        st.title("Matrices de concentración")
         focus_countries = ["AR", "BO", "BR", "PY", "UY"]
         df_focus = df_f[df_f["recipientcountry_code"].isin(focus_countries)]
         pivot = (
