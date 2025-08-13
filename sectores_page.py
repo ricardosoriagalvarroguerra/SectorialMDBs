@@ -369,8 +369,16 @@ def render():
         )
         st.plotly_chart(fig_bubble, use_container_width=True)
 
+        # El diagrama de Sankey no debe verse afectado por los filtros de
+        # "MDBs" y "Países" seleccionados arriba, por lo que se construye a
+        # partir de la base completa de datos filtrada solo por el rango de
+        # años y países permitidos.
         sankey_df = (
-            df_focus.groupby(["source", "macro_sector", "recipientcountry_codename"])["value_usd"].sum().reset_index()
+            df_base.groupby(["source", "macro_sector", "recipientcountry_codename"])[
+                "value_usd"
+            ]
+            .sum()
+            .reset_index()
         )
         sankey_df["value_usd"] = sankey_df["value_usd"] / 1e6
         if not sankey_df.empty:
