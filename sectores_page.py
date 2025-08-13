@@ -128,24 +128,37 @@ def render():
     elif subpage == "Comparador A vs B":
         sector_list = sorted(df_f["macro_sector"].dropna().unique())
         source_list = sorted(df_f["source"].dropna().unique())
+        country_list = sorted(
+            df_f["recipientcountry_codename"].dropna().unique()
+        )
         col1, col2 = st.columns(2)
         with col1:
             sector_a = st.selectbox("Macro sector A", sector_list, key="sector_a")
             source_a = st.selectbox("MDB A", source_list, key="source_a")
+            country_a = st.selectbox("País A", country_list, key="country_a")
         with col2:
             sector_b = st.selectbox("Macro sector B", sector_list, key="sector_b")
             source_b = st.selectbox("MDB B", source_list, key="source_b")
-        df_a = df_f[(df_f["macro_sector"] == sector_a) & (df_f["source"] == source_a)]
-        df_b = df_f[(df_f["macro_sector"] == sector_b) & (df_f["source"] == source_b)]
+            country_b = st.selectbox("País B", country_list, key="country_b")
+        df_a = df_f[
+            (df_f["macro_sector"] == sector_a)
+            & (df_f["source"] == source_a)
+            & (df_f["recipientcountry_codename"] == country_a)
+        ]
+        df_b = df_f[
+            (df_f["macro_sector"] == sector_b)
+            & (df_f["source"] == source_b)
+            & (df_f["recipientcountry_codename"] == country_b)
+        ]
         df_a = df_a.groupby("year")["value_usd"].sum().reset_index()
         df_b = df_b.groupby("year")["value_usd"].sum().reset_index()
-        df_a["grupo"] = f"{sector_a} - {source_a}"
-        df_b["grupo"] = f"{sector_b} - {source_b}"
+        df_a["grupo"] = f"{sector_a} - {source_a} - {country_a}"
+        df_b["grupo"] = f"{sector_b} - {source_b} - {country_b}"
         comp_df = pd.concat([df_a, df_b])
         comp_df["value_usd"] = comp_df["value_usd"] / 1e6
         color_map = {
-            f"{sector_a} - {source_a}": "#219ebc",
-            f"{sector_b} - {source_b}": "#ffb703",
+            f"{sector_a} - {source_a} - {country_a}": "#219ebc",
+            f"{sector_b} - {source_b} - {country_b}": "#ffb703",
         }
         fig_bar = px.bar(
             comp_df,
@@ -158,14 +171,25 @@ def render():
         )
         st.plotly_chart(fig_bar, use_container_width=True)
         col_a, col_b = st.columns(2)
-        for col, (sector, source) in zip((col_a, col_b), ((sector_a, source_a), (sector_b, source_b))):
-            s_df = df_f[(df_f["macro_sector"] == sector) & (df_f["source"] == source)]
+        for col, (sector, source, country) in zip(
+            (col_a, col_b),
+            ((sector_a, source_a, country_a), (sector_b, source_b, country_b)),
+        ):
+            s_df = df_f[
+                (df_f["macro_sector"] == sector)
+                & (df_f["source"] == source)
+                & (df_f["recipientcountry_codename"] == country)
+            ]
             total = s_df["value_usd"].sum() / 1e6
             ops = len(s_df)
             ticket = total / ops if ops else 0
             median = s_df["value_usd"].median() / 1e6 if ops else 0
             col.markdown(
-                f"**{sector} - {source}**\n\n- Total: {total:,.2f} millones\n- #ops: {ops}\n- Ticket promedio: {ticket:,.2f} millones\n- Mediana: {median:,.2f} millones"
+                f"**{sector} - {source} - {country}**\n\n"
+                f"- Total: {total:,.2f} millones\n"
+                f"- #ops: {ops}\n"
+                f"- Ticket promedio: {ticket:,.2f} millones\n"
+                f"- Mediana: {median:,.2f} millones"
             )
 
     elif subpage == "Ficha de sector":
