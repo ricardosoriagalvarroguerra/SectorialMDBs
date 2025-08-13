@@ -231,6 +231,12 @@ def render():
                     "monto": "Monto (millones USD)",
                 }
             )
+            summary["Ticket prom. (millones USD)"] = (
+                summary["Ticket prom. (millones USD)"].round().astype(int)
+            )
+            summary["Monto (millones USD)"] = (
+                summary["Monto (millones USD)"].round().astype(int)
+            )
             st.dataframe(summary, use_container_width=True)
 
     elif subpage == "Matrices de concentración":
