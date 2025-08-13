@@ -143,14 +143,20 @@ def render():
         df_b["grupo"] = f"{sector_b} - {source_b}"
         comp_df = pd.concat([df_a, df_b])
         comp_df["value_usd"] = comp_df["value_usd"] / 1e6
-        fig_line = px.line(
+        color_map = {
+            f"{sector_a} - {source_a}": "#219ebc",
+            f"{sector_b} - {source_b}": "#ffb703",
+        }
+        fig_bar = px.bar(
             comp_df,
             x="year",
             y="value_usd",
             color="grupo",
             labels={"value_usd": "USD (millones)", "year": "Año", "grupo": "Grupo"},
+            color_discrete_map=color_map,
+            barmode="stack",
         )
-        st.plotly_chart(fig_line, use_container_width=True)
+        st.plotly_chart(fig_bar, use_container_width=True)
         col_a, col_b = st.columns(2)
         for col, (sector, source) in zip((col_a, col_b), ((sector_a, source_a), (sector_b, source_b))):
             s_df = df_f[(df_f["macro_sector"] == sector) & (df_f["source"] == source)]
