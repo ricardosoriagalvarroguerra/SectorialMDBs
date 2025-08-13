@@ -279,8 +279,17 @@ def render():
         st.plotly_chart(fig_heat2, use_container_width=True)
 
     elif subpage == "Intensidad y estructura":
-        focus_countries = ["AR", "BO", "BR", "PY", "UY"]
-        df_focus = df_f[df_f["recipientcountry_code"].isin(focus_countries)]
+        source_opts = sorted(df_f["source"].dropna().unique())
+        country_opts = sorted(df_f["recipientcountry_codename"].dropna().unique())
+        col_filters = st.columns(2)
+        with col_filters[0]:
+            selected_sources = st.multiselect("MDBs", source_opts, default=source_opts)
+        with col_filters[1]:
+            selected_countries = st.multiselect("Países", country_opts, default=country_opts)
+        df_focus = df_f[
+            df_f["source"].isin(selected_sources)
+            & df_f["recipientcountry_codename"].isin(selected_countries)
+        ]
         bubble_df = (
             df_focus.groupby("macro_sector").agg(
                 sum_usd=("value_usd", lambda x: x.sum() / 1e6),
@@ -304,6 +313,13 @@ def render():
             df_focus.groupby(["source", "macro_sector", "recipientcountry_codename"])["value_usd"].sum().reset_index()
         )
         sankey_df["value_usd"] = sankey_df["value_usd"] / 1e6
+        if not sankey_df.empty:
+            min_val = float(sankey_df["value_usd"].min())
+            max_val = float(sankey_df["value_usd"].max())
+            val_range = st.slider(
+                "Rango de monto (millones USD)", min_val, max_val, (min_val, max_val)
+            )
+            sankey_df = sankey_df[sankey_df["value_usd"].between(*val_range)]
         sources_nodes = sankey_df["source"].unique().tolist()
         macro_nodes = sankey_df["macro_sector"].unique().tolist()
         country_nodes = sankey_df["recipientcountry_codename"].unique().tolist()
