@@ -32,9 +32,9 @@ def kpi_block(df: pd.DataFrame):
     avg_ticket = total / ops if ops else 0
     median_ticket = df["value_usd"].median() if ops else 0
     countries = df["recipientcountry_codename"].nunique()
-    sectors = df["sector_codename"].nunique()
+    sectors = df["macro_sector"].nunique()
     leader = (
-        df.groupby("sector_codename")["value_usd"].sum().sort_values(ascending=False).head(1)
+        df.groupby("macro_sector")["value_usd"].sum().sort_values(ascending=False).head(1)
     )
     if not leader.empty and total:
         leader_name = leader.index[0]
@@ -106,34 +106,34 @@ def render():
 
     # -------- Tab 0: Panorama --------
     with tabs[0]:
-        df_sector = (
-            df_f.groupby("sector_codename")
+        df_macro = (
+            df_f.groupby("macro_sector")
             .agg(value_usd=("value_usd", "sum"), ops=("iatiidentifier", "count"))
             .sort_values("value_usd", ascending=False)
         )
-        df_sector["ticket"] = df_sector["value_usd"] / df_sector["ops"]
-        df_top = df_sector.head(top_n).reset_index()
+        df_macro["ticket"] = df_macro["value_usd"] / df_macro["ops"]
+        df_top = df_macro.head(top_n).reset_index()
         fig_bar = px.bar(
             df_top,
             x="value_usd",
-            y="sector_codename",
+            y="macro_sector",
             orientation="h",
-            labels={"value_usd": "USD", "sector_codename": "Sector"},
+            labels={"value_usd": "USD", "macro_sector": "Macro sector"},
             hover_data={"value_usd":":.2f","ops":True,"ticket":":.2f"},
         )
         fig_bar.update_layout(yaxis={"categoryorder": "total ascending"})
         st.plotly_chart(fig_bar, use_container_width=True)
 
-        df_macro = df_f.groupby("macro_sector")["value_usd"].sum().reset_index()
-        if show_pct and df_macro["value_usd"].sum() != 0:
-            df_macro["value"] = df_macro["value_usd"] / df_macro["value_usd"].sum() * 100
+        df_donut = df_macro.reset_index()
+        if show_pct and df_donut["value_usd"].sum() != 0:
+            df_donut["value"] = df_donut["value_usd"] / df_donut["value_usd"].sum() * 100
             value_col = "value"
             hover_template = "%{label}: %{value:.1f}%"
         else:
             value_col = "value_usd"
             hover_template = "%{label}: %{value:,.2f}"
         fig_donut = px.pie(
-            df_macro,
+            df_donut,
             names="macro_sector",
             values=value_col,
             hole=0.4,
@@ -141,46 +141,46 @@ def render():
         fig_donut.update_traces(hovertemplate=hover_template)
         st.plotly_chart(fig_donut, use_container_width=True)
 
-        top_sectors = df_sector.head(top_n).index
-        df_year_sector = (
-            df_f[df_f["sector_codename"].isin(top_sectors)]
-            .groupby(["year", "sector_codename"])["value_usd"].sum()
+        top_macros = df_macro.head(top_n).index
+        df_year_macro = (
+            df_f[df_f["macro_sector"].isin(top_macros)]
+            .groupby(["year", "macro_sector"])["value_usd"].sum()
             .reset_index()
         )
         if show_pct:
             total_year = df_f.groupby("year")["value_usd"].sum().reset_index()
-            df_year_sector = df_year_sector.merge(total_year, on="year", suffixes=("", "_total"))
-            df_year_sector["value_usd"] = df_year_sector["value_usd"] / df_year_sector["value_usd_total"] * 100
+            df_year_macro = df_year_macro.merge(total_year, on="year", suffixes=("", "_total"))
+            df_year_macro["value_usd"] = df_year_macro["value_usd"] / df_year_macro["value_usd_total"] * 100
             y_label = "% del total"
         else:
             y_label = "USD"
         fig_area = px.area(
-            df_year_sector,
+            df_year_macro,
             x="year",
             y="value_usd",
-            color="sector_codename",
-            labels={"year": "Año", "value_usd": y_label, "sector_codename": "Sector"},
+            color="macro_sector",
+            labels={"year": "Año", "value_usd": y_label, "macro_sector": "Macro sector"},
         )
         st.plotly_chart(fig_area, use_container_width=True)
 
     # -------- Tab 1: Comparador A vs B --------
     with tabs[1]:
-        sector_list = sorted(df_f["sector_codename"].dropna().unique())
+        sector_list = sorted(df_f["macro_sector"].dropna().unique())
         col1, col2 = st.columns(2)
         with col1:
-            sector_a = st.selectbox("Sector A", sector_list, key="sector_a")
+            sector_a = st.selectbox("Macro sector A", sector_list, key="sector_a")
         with col2:
-            sector_b = st.selectbox("Sector B", sector_list, key="sector_b")
+            sector_b = st.selectbox("Macro sector B", sector_list, key="sector_b")
         comp_df = (
-            df_f[df_f["sector_codename"].isin([sector_a, sector_b])]
-            .groupby(["year", "sector_codename"])["value_usd"].sum()
+            df_f[df_f["macro_sector"].isin([sector_a, sector_b])]
+            .groupby(["year", "macro_sector"])["value_usd"].sum()
             .reset_index()
         )
-        fig_line = px.line(comp_df, x="year", y="value_usd", color="sector_codename")
+        fig_line = px.line(comp_df, x="year", y="value_usd", color="macro_sector")
         st.plotly_chart(fig_line, use_container_width=True)
         col_a, col_b = st.columns(2)
         for col, sector in zip((col_a, col_b), (sector_a, sector_b)):
-            s_df = df_f[df_f["sector_codename"] == sector]
+            s_df = df_f[df_f["macro_sector"] == sector]
             total = s_df["value_usd"].sum()
             ops = len(s_df)
             ticket = total / ops if ops else 0
@@ -193,13 +193,13 @@ def render():
     # -------- Tab 2: Ficha de sector --------
     with tabs[2]:
         sector_totals = (
-            df_f.groupby("sector_codename")["value_usd"].sum().sort_values(ascending=False)
+            df_f.groupby("macro_sector")["value_usd"].sum().sort_values(ascending=False)
         )
         default_sector = sector_totals.index[0] if not sector_totals.empty else None
         sector_sel = st.selectbox(
-            "Sector", sector_totals.index.tolist(), index=0 if default_sector else None
+            "Macro sector", sector_totals.index.tolist(), index=0 if default_sector else None
         )
-        sec_df = df_f[df_f["sector_codename"] == sector_sel]
+        sec_df = df_f[df_f["macro_sector"] == sector_sel]
         top_countries = (
             sec_df.groupby("recipientcountry_codename")["value_usd"].sum().sort_values(ascending=False).head(top_n).reset_index()
         )
@@ -229,6 +229,7 @@ def render():
             "year",
             "recipientcountry_codename",
             "source",
+            "sector_codename",
             "value_usd",
         ]
         st.dataframe(sec_df[display_cols])
@@ -249,7 +250,7 @@ def render():
             df_f[df_f["recipientcountry_codename"].isin(top_countries)]
             .pivot_table(
                 index="recipientcountry_codename",
-                columns="sector_codename",
+                columns="macro_sector",
                 values="value_usd",
                 aggfunc="sum",
                 fill_value=0,
@@ -273,7 +274,7 @@ def render():
     # -------- Tab 4: Intensidad y estructura --------
     with tabs[4]:
         bubble_df = (
-            df_f.groupby("sector_codename").agg(
+            df_f.groupby("macro_sector").agg(
                 sum_usd=("value_usd", "sum"),
                 mean_usd=("value_usd", "mean"),
                 ops=("iatiidentifier", "count"),
@@ -284,7 +285,7 @@ def render():
             x="mean_usd",
             y="sum_usd",
             size="ops",
-            hover_name="sector_codename",
+            hover_name="macro_sector",
             labels={"mean_usd": "Ticket promedio", "sum_usd": "Total USD", "ops": "# ops"},
         )
         st.plotly_chart(fig_bubble, use_container_width=True)
@@ -327,6 +328,7 @@ def render():
             "transactiondate_isodate",
             "recipientcountry_codename",
             "source",
+            "macro_sector",
             "sector_code",
             "sector_codename",
             "value_usd",
