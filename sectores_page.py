@@ -165,7 +165,7 @@ def render():
             x="year",
             y="value_usd",
             color="grupo",
-            labels={"value_usd": "USD (millones)", "year": "Año", "grupo": "Grupo"},
+            labels={"value_usd": "USD (millones)", "grupo": "Grupo"},
             color_discrete_map=color_map,
             barmode="stack",
         )
@@ -179,6 +179,7 @@ def render():
                 title_text="",
             )
         )
+        fig_bar.update_xaxes(title="")
         st.plotly_chart(fig_bar, use_container_width=True)
         col_a, col_b = st.columns(2)
         for col, (sector, source, country) in zip(
