@@ -54,7 +54,7 @@ macrosectores_dict = {
         "Oil and gas (upstream)", "Solar energy for centralised grids", "Construction policy and administrative management",
         "Information and communication technology (ICT)", "Telecommunications", "Communications policy, planning and administration",
         "Urban development", "Urban land policy and management", "Rural development", "Rural land policy and management",
-        "Low-cost housing", "Housing policy and administrative management", "Transport policy and administrative management"
+        "Low-cost housing", "Housing policy and administrative management", "Transport policy and administrative management", "Transport & Storage"
     ],
     "Ambiental": [
         "Environmental policy and administrative management", "Environmental research", "Biodiversity", "Biosphere protection", "Flood prevention/control",
