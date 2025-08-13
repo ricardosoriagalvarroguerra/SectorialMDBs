@@ -169,6 +169,16 @@ def render():
             color_discrete_map=color_map,
             barmode="stack",
         )
+        fig_bar.update_layout(
+            legend=dict(
+                orientation="h",
+                yanchor="bottom",
+                y=-0.2,
+                xanchor="center",
+                x=0.5,
+                title_text="",
+            )
+        )
         st.plotly_chart(fig_bar, use_container_width=True)
         col_a, col_b = st.columns(2)
         for col, (sector, source, country) in zip(
