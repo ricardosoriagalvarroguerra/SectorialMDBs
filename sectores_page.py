@@ -279,8 +279,10 @@ def render():
         st.plotly_chart(fig_heat2, use_container_width=True)
 
     elif subpage == "Intensidad y estructura":
+        focus_countries = ["AR", "BO", "BR", "PY", "UY"]
+        df_focus = df_f[df_f["recipientcountry_code"].isin(focus_countries)]
         bubble_df = (
-            df_f.groupby("macro_sector").agg(
+            df_focus.groupby("macro_sector").agg(
                 sum_usd=("value_usd", lambda x: x.sum() / 1e6),
                 mean_usd=("value_usd", lambda x: x.mean() / 1e6),
                 ops=("iatiidentifier", "count"),
@@ -299,7 +301,7 @@ def render():
         st.plotly_chart(fig_bubble, use_container_width=True)
 
         sankey_df = (
-            df_f.groupby(["source", "macro_sector", "recipientcountry_codename"])["value_usd"].sum().reset_index()
+            df_focus.groupby(["source", "macro_sector", "recipientcountry_codename"])["value_usd"].sum().reset_index()
         )
         sankey_df["value_usd"] = sankey_df["value_usd"] / 1e6
         sources_nodes = sankey_df["source"].unique().tolist()
