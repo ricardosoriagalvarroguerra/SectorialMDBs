@@ -44,6 +44,29 @@ def render():
     min_year, max_year = int(df["year"].min()), int(df["year"].max())
     source_list = sorted(df["source"].dropna().unique())
     selected_sources = source_list
+    country_code_map = {
+        "Argentina": ["AR"],
+        "Bolivia": ["BO"],
+        "Brasil": ["BR"],
+        "Paraguay": ["PY"],
+        "Uruguay": ["UY"],
+        "Resto Latam": [
+            "CL",
+            "CR",
+            "CO",
+            "GT",
+            "EC",
+            "HN",
+            "MX",
+            "NI",
+            "PA",
+            "PE",
+            "SV",
+        ],
+    }
+    country_options = list(country_code_map.keys())
+    all_country_codes = [code for codes in country_code_map.values() for code in codes]
+    selected_country_codes = all_country_codes
     with st.sidebar:
         year_range = st.slider("Año", min_year, max_year, (min_year, max_year), step=1)
         subpage = st.radio(
@@ -61,12 +84,24 @@ def render():
             selected_sources = st.multiselect(
                 "MDBs", source_list, default=source_list
             )
+            country_sel = st.multiselect(
+                "Países",
+                ["Todos los países"] + country_options,
+                default=["Todos los países"],
+            )
+            selected_country_labels = handle_multiselect_behavior(
+                country_sel, country_options, "Todos los países"
+            )
+            selected_country_codes = []
+            for label in selected_country_labels:
+                selected_country_codes.extend(country_code_map[label])
     # Apply filters
     mask = (df["year"].between(*year_range)) & (df["value_usd"] >= 0)
     df_f = df[mask].copy()
     df_f = df_f[df_f["macro_sector"].ne("No clasificado")]
     if subpage == "Panorama de sectores" and selected_sources:
         df_f = df_f[df_f["source"].isin(selected_sources)]
+        df_f = df_f[df_f["recipientcountry_code"].isin(selected_country_codes)]
     top_n = 10
 
     macros = sorted(df_f["macro_sector"].dropna().unique())
