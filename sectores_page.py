@@ -375,6 +375,7 @@ def render():
                 hovertemplate="%{y} - %{x}: %{z:.1f}%<extra></extra>",
             )
         )
+        fig_heat.update_yaxes(autorange="reversed")
         st.plotly_chart(fig_heat, use_container_width=True)
 
         pivot2 = (
@@ -401,6 +402,7 @@ def render():
                 hovertemplate="%{y} - %{x}: %{z:.1f}%<extra></extra>",
             )
         )
+        fig_heat2.update_yaxes(autorange="reversed")
         st.plotly_chart(fig_heat2, use_container_width=True)
 
     elif subpage == "Intensidad y estructura":
