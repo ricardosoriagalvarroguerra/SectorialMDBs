@@ -43,7 +43,9 @@ def render():
     df = load_sectores()
     min_year, max_year = int(df["year"].min()), int(df["year"].max())
     source_list = sorted(df["source"].dropna().unique())
+    country_list = sorted(df["recipientcountry_codename"].dropna().unique())
     selected_sources = source_list
+    selected_countries = country_list
     with st.sidebar:
         year_range = st.slider("Año", min_year, max_year, (min_year, max_year), step=1)
         subpage = st.radio(
@@ -54,12 +56,19 @@ def render():
                 "Ficha de sector",
                 "Matrices de concentración",
                 "Intensidad y estructura",
-                "Tabla maestro",
+                "Tabla maestra",
             ],
         )
         if subpage == "Panorama de sectores":
             selected_sources = st.multiselect(
                 "MDBs", source_list, default=source_list
+            )
+        elif subpage == "Tabla maestra":
+            selected_sources = st.multiselect(
+                "MDBs", source_list, default=source_list
+            )
+            selected_countries = st.multiselect(
+                "País", country_list, default=country_list
             )
     # Apply filters
     mask = (df["year"].between(*year_range)) & (df["value_usd"] >= 0)
@@ -67,6 +76,13 @@ def render():
     df_f = df_f[df_f["macro_sector"].ne("No clasificado")]
     if subpage == "Panorama de sectores" and selected_sources:
         df_f = df_f[df_f["source"].isin(selected_sources)]
+    elif subpage == "Tabla maestra":
+        if selected_sources:
+            df_f = df_f[df_f["source"].isin(selected_sources)]
+        if selected_countries:
+            df_f = df_f[
+                df_f["recipientcountry_codename"].isin(selected_countries)
+            ]
     top_n = 10
 
     macros = sorted(df_f["macro_sector"].dropna().unique())
@@ -511,7 +527,7 @@ def render():
         fig_sankey.update_layout(height=600, width=1000)
         st.plotly_chart(fig_sankey, use_container_width=True)
 
-    elif subpage == "Tabla maestro":
+    elif subpage == "Tabla maestra":
         cols = [
             "iatiidentifier",
             "transactiondate_isodate",
