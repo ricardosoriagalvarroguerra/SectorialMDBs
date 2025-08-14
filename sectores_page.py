@@ -97,6 +97,13 @@ def render():
             selected_country_codes = []
             for label in selected_country_labels:
                 selected_country_codes.extend(country_code_map[label])
+        elif subpage == "Matrices de concentración":
+            selected_sources = st.multiselect(
+                "Source (MDBs)",
+                source_list,
+                default=source_list,
+                key="mdbs_matrices",
+            )
         elif subpage == "Tabla maestra":
             selected_sources = st.multiselect(
                 "Source (MDBs)", source_list, default=source_list, key="mdbs_maestra"
@@ -111,6 +118,8 @@ def render():
     if subpage == "Panorama de sectores" and selected_sources:
         df_f = df_f[df_f["source"].isin(selected_sources)]
         df_f = df_f[df_f["recipientcountry_code"].isin(selected_country_codes)]
+    elif subpage == "Matrices de concentración" and selected_sources:
+        df_f = df_f[df_f["source"].isin(selected_sources)]
     elif subpage == "Tabla maestra":
         df_f = df_f[df_f["source"].isin(selected_sources)]
         df_f = df_f[df_f["recipientcountry_codename"].isin(selected_countries_tabla)]
@@ -337,6 +346,12 @@ def render():
         st.title("Matrices de concentración")
         focus_countries = ["AR", "BO", "BR", "PY", "UY"]
         df_focus = df_f[df_f["recipientcountry_code"].isin(focus_countries)]
+        sector_order = (
+            df_focus.groupby("macro_sector")["value_usd"]
+            .sum()
+            .sort_values(ascending=False)
+            .index
+        )
         pivot = (
             df_focus.pivot_table(
                 index="macro_sector",
@@ -347,6 +362,7 @@ def render():
             )
         )
         pivot = pivot.div(pivot.sum(axis=0), axis=1).fillna(0) * 100
+        pivot = pivot.loc[sector_order]
         fig_heat = go.Figure(
             data=go.Heatmap(
                 z=pivot.values,
@@ -372,6 +388,7 @@ def render():
         )
         pivot2 = pivot2.div(pivot2.sum(axis=1), axis=0).fillna(0) * 100
         pivot2 = pivot2.T
+        pivot2 = pivot2.loc[sector_order]
         fig_heat2 = go.Figure(
             data=go.Heatmap(
                 z=pivot2.values,
