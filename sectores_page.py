@@ -371,6 +371,7 @@ def render():
             )
         )
         pivot2 = pivot2.div(pivot2.sum(axis=1), axis=0).fillna(0) * 100
+        pivot2 = pivot2.T
         fig_heat2 = go.Figure(
             data=go.Heatmap(
                 z=pivot2.values,
