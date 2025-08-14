@@ -67,6 +67,8 @@ def render():
     country_options = list(country_code_map.keys())
     all_country_codes = [code for codes in country_code_map.values() for code in codes]
     selected_country_codes = all_country_codes
+    country_list_tabla = sorted(df["recipientcountry_codename"].dropna().unique())
+    selected_countries_tabla = country_list_tabla
     with st.sidebar:
         year_range = st.slider("Año", min_year, max_year, (min_year, max_year), step=1)
         subpage = st.radio(
@@ -77,7 +79,7 @@ def render():
                 "Ficha de sector",
                 "Matrices de concentración",
                 "Intensidad y estructura",
-                "Tabla maestro",
+                "Tabla maestra",
             ],
         )
         if subpage == "Panorama de sectores":
@@ -95,6 +97,13 @@ def render():
             selected_country_codes = []
             for label in selected_country_labels:
                 selected_country_codes.extend(country_code_map[label])
+        elif subpage == "Tabla maestra":
+            selected_sources = st.multiselect(
+                "Source (MDBs)", source_list, default=source_list, key="mdbs_maestra"
+            )
+            selected_countries_tabla = st.multiselect(
+                "País", country_list_tabla, default=country_list_tabla, key="paises_maestra"
+            )
     # Apply filters
     mask = (df["year"].between(*year_range)) & (df["value_usd"] >= 0)
     df_f = df[mask].copy()
@@ -102,6 +111,9 @@ def render():
     if subpage == "Panorama de sectores" and selected_sources:
         df_f = df_f[df_f["source"].isin(selected_sources)]
         df_f = df_f[df_f["recipientcountry_code"].isin(selected_country_codes)]
+    elif subpage == "Tabla maestra":
+        df_f = df_f[df_f["source"].isin(selected_sources)]
+        df_f = df_f[df_f["recipientcountry_codename"].isin(selected_countries_tabla)]
     top_n = 10
 
     macros = sorted(df_f["macro_sector"].dropna().unique())
@@ -546,7 +558,7 @@ def render():
         fig_sankey.update_layout(height=600, width=1000)
         st.plotly_chart(fig_sankey, use_container_width=True)
 
-    elif subpage == "Tabla maestro":
+    elif subpage == "Tabla maestra":
         cols = [
             "iatiidentifier",
             "transactiondate_isodate",
