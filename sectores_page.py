@@ -197,6 +197,7 @@ def render():
                 color_discrete_map=macro_color_map,
                 barmode="stack",
             )
+            fig_stack.update_layout(showlegend=False)
             st.plotly_chart(fig_stack, use_container_width=True)
 
         with col_percent:
@@ -219,6 +220,7 @@ def render():
                 barmode="stack",
             )
             fig_percent.update_yaxes(range=[0, 100])
+            fig_percent.update_layout(showlegend=False)
             st.plotly_chart(fig_percent, use_container_width=True)
 
     elif subpage == "Comparador A vs B":
