@@ -449,21 +449,17 @@ def render():
         with col_filters[0]:
             source_sel = st.multiselect(
                 "MDBs",
-                ["Todos los MDBs"] + source_opts,
-                default=["Todos los MDBs"],
+                source_opts,
+                default=source_opts[:1],
             )
-            selected_sources = handle_multiselect_behavior(
-                source_sel, source_opts, "Todos los MDBs"
-            )
+            selected_sources = source_sel
         with col_filters[1]:
             country_sel = st.multiselect(
                 "Países",
-                ["Todos los países"] + country_opts,
-                default=["Todos los países"],
+                country_opts,
+                default=country_opts[:1],
             )
-            selected_countries = handle_multiselect_behavior(
-                country_sel, country_opts, "Todos los países"
-            )
+            selected_countries = country_sel
         df_focus = df_base[
             df_base["source"].isin(selected_sources)
             & df_base["recipientcountry_codename"].isin(selected_countries)
