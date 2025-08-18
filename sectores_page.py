@@ -176,16 +176,46 @@ def render():
         df_year_macro["macro_sector"] = pd.Categorical(
             df_year_macro["macro_sector"], categories=macro_order, ordered=True
         )
-        fig_area = px.area(
-            df_year_macro,
-            x="year",
-            y="value_usd",
-            color="macro_sector",
-            category_orders={"macro_sector": macro_order},
-            labels={"year": "Año", "value_usd": "USD (millones)", "macro_sector": "Macro sector"},
-            color_discrete_map=macro_color_map,
-        )
-        st.plotly_chart(fig_area, use_container_width=True)
+        col_stack, col_percent = st.columns(2)
+
+        with col_stack:
+            fig_stack = px.bar(
+                df_year_macro,
+                x="year",
+                y="value_usd",
+                color="macro_sector",
+                category_orders={"macro_sector": macro_order},
+                labels={
+                    "year": "Año",
+                    "value_usd": "USD (millones)",
+                    "macro_sector": "Macro sector",
+                },
+                color_discrete_map=macro_color_map,
+                barmode="stack",
+            )
+            st.plotly_chart(fig_stack, use_container_width=True)
+
+        with col_percent:
+            df_percent = df_year_macro.copy()
+            df_percent["percent"] = (
+                df_percent.groupby("year")["value_usd"].transform(lambda x: x / x.sum() * 100)
+            )
+            fig_percent = px.bar(
+                df_percent,
+                x="year",
+                y="percent",
+                color="macro_sector",
+                category_orders={"macro_sector": macro_order},
+                labels={
+                    "year": "Año",
+                    "percent": "Participación (%)",
+                    "macro_sector": "Macro sector",
+                },
+                color_discrete_map=macro_color_map,
+                barmode="stack",
+            )
+            fig_percent.update_yaxes(range=[0, 100])
+            st.plotly_chart(fig_percent, use_container_width=True)
 
     elif subpage == "Comparador A vs B":
         sector_list = sorted(df_f["macro_sector"].dropna().unique())
