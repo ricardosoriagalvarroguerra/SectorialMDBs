@@ -180,6 +180,22 @@ def render():
         df_year_macro["macro_sector"] = pd.Categorical(
             df_year_macro["macro_sector"], categories=macro_order, ordered=True
         )
+        # Leyenda manual centrada entre los dos gráficos de barras
+        if macro_order:
+            legend_items = [
+                f"<span style='display:inline-flex;align-items:center;margin-right:8px;'>"
+                f"<span style='width:12px;height:12px;background-color:{macro_color_map[m]};"
+                f"display:inline-block;border-radius:2px;margin-right:4px;'></span>{m}</span>"
+                for m in macro_order
+                if m in macro_color_map
+            ]
+            legend_html = (
+                "<div style='text-align:center;margin-bottom:10px;'>"
+                + "".join(legend_items)
+                + "</div>"
+            )
+            st.markdown(legend_html, unsafe_allow_html=True)
+
         col_stack, col_percent = st.columns(2)
 
         with col_stack:
