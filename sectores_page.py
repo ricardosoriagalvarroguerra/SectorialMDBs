@@ -12,16 +12,16 @@ def handle_multiselect_behavior(selected_options, all_options, select_all_text):
         return all_options
     return [opt for opt in selected_options if opt != select_all_text]
 
-# Paleta de colores para macro sectores
-MACRO_COLORS = [
-    "#001524",
-    "#15616D",
-    "#8AA79F",
-    "#FFECD1",
-    "#BC8B70",
-    "#78290F",
-    "#FF7D00",
-]
+# Paleta de colores fija para cada macro sector
+MACRO_COLOR_MAP = {
+    "Social": "#001524",
+    "Productivo": "#15616D",
+    "Infraestructura": "#8AA79F",
+    "Ambiental": "#FFECD1",
+    "Gobernanza/Público": "#BC8B70",
+    "Multisectorial/Otros": "#78290F",
+    "Administrativo / No asignado": "#FF7D00",
+}
 
 
 @st.cache_data
@@ -125,9 +125,13 @@ def render():
         df_f = df_f[df_f["recipientcountry_codename"].isin(selected_countries_tabla)]
     top_n = 10
 
-    macros = sorted(df_f["macro_sector"].dropna().unique())
+    # Mapear los macro sectores presentes a los colores predefinidos para
+    # asegurar consistencia incluso cuando se filtran datos por fechas u otros
+    # criterios.
     macro_color_map = {
-        macro: MACRO_COLORS[i % len(MACRO_COLORS)] for i, macro in enumerate(macros)
+        m: MACRO_COLOR_MAP[m]
+        for m in df_f["macro_sector"].dropna().unique()
+        if m in MACRO_COLOR_MAP
     }
 
     if subpage == "Panorama de sectores":
