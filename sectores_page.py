@@ -104,6 +104,15 @@ def render():
                 default=source_list,
                 key="mdbs_matrices",
             )
+            country_sel = st.multiselect(
+                "Países",
+                ["Argentina", "Bolivia", "Brasil", "Paraguay", "Uruguay"],
+                default=["Argentina", "Bolivia", "Brasil", "Paraguay", "Uruguay"],
+                key="paises_matrices",
+            )
+            selected_country_codes = []
+            for label in country_sel:
+                selected_country_codes.extend(country_code_map.get(label, []))
         elif subpage == "Tabla maestra":
             selected_sources = st.multiselect(
                 "Source (MDBs)", source_list, default=source_list, key="mdbs_maestra"
@@ -120,6 +129,7 @@ def render():
         df_f = df_f[df_f["recipientcountry_code"].isin(selected_country_codes)]
     elif subpage == "Matrices de concentración" and selected_sources:
         df_f = df_f[df_f["source"].isin(selected_sources)]
+        df_f = df_f[df_f["recipientcountry_code"].isin(selected_country_codes)]
     elif subpage == "Tabla maestra":
         df_f = df_f[df_f["source"].isin(selected_sources)]
         df_f = df_f[df_f["recipientcountry_codename"].isin(selected_countries_tabla)]
@@ -396,8 +406,7 @@ def render():
 
     elif subpage == "Matrices de concentración":
         st.title("Matrices de concentración")
-        focus_countries = ["AR", "BO", "BR", "PY", "UY"]
-        df_focus = df_f[df_f["recipientcountry_code"].isin(focus_countries)]
+        df_focus = df_f[df_f["recipientcountry_code"].isin(selected_country_codes)]
         sector_order = (
             df_focus.groupby("macro_sector")["value_usd"]
             .sum()
