@@ -32,7 +32,7 @@ macrosectores_dict = {
         "Teacher training", "Trade education/training", "Vocational training", "Educational research",
         "Basic life skills for youth", "Recreation and sport",
         "Social protection", "Social protection and welfare services policy, planning and administration",
-        "Social services (incl youth development and women+ children)", "Civil service pensions", "General pensions"
+        "Social services (incl youth development and women+ children)", "Civil service pensions", "General pensions", "Low-cost housing", "Housing policy and administrative management"
     ],
     "Productivo": [
         "Agriculture, forestry and fishing", "Agricultural development", "Agricultural co-operatives", "Agricultural extension",
@@ -55,8 +55,7 @@ macrosectores_dict = {
         "Energy sector policy, planning and administration", "Energy conservation and demand-side efficiency", "Hydro-electric power plants", "Geothermal energy",
         "Oil and gas (upstream)", "Solar energy for centralised grids", "Construction policy and administrative management",
         "Information and communication technology (ICT)", "Telecommunications", "Communications policy, planning and administration",
-        "Urban development", "Urban land policy and management", "Rural development", "Rural land policy and management",
-        "Low-cost housing", "Housing policy and administrative management", "Transport policy and administrative management", "Transport & Storage"
+        "Urban development", "Urban land policy and management", "Rural development", "Rural land policy and management", "Transport policy and administrative management", "Transport & Storage"
     ],
     "Ambiental": [
         "Environmental policy and administrative management", "Environmental research", "Biodiversity", "Biosphere protection", "Flood prevention/control",
