@@ -91,8 +91,15 @@ pagina = st.session_state.get('pagina', st.session_state.get('pagina_ids', 'Deud
 @st.cache_data
 def load_iati_data():
     try:
-        return pd.read_parquet('BDDGLOBALMERGED_ACTUALIZADO.parquet')
-    except:
+        df = pd.read_parquet('BDDGLOBALMERGED_ACTUALIZADO.parquet')
+        # Ajuste manual para proyecto específico con valor incorrecto
+        mask = (
+            (df['iatiidentifier'] == 'XM-DAC-46027-PY028') &
+            (df['transactiontype_code'] == 2)
+        )
+        df.loc[mask, 'value_usd'] = 354200000
+        return df
+    except Exception:
         return None
 
 df_iati = load_iati_data()
