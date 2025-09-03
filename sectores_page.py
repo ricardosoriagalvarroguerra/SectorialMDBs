@@ -39,8 +39,30 @@ def load_sectores() -> pd.DataFrame:
     )
     return df
 
+
+@st.cache_data
+def load_transactions() -> pd.DataFrame:
+    df_tx = pd.read_parquet(
+        "BDDGLOBALMERGED_ACTUALIZADO.parquet",
+        columns=[
+            "iatiidentifier",
+            "transactiontype_code",
+            "transactiondate_isodate",
+            "value_usd",
+            "fuente",
+        ],
+    )
+    df_tx["transactiondate_isodate"] = pd.to_datetime(
+        df_tx["transactiondate_isodate"]
+    )
+    df_tx["source"] = df_tx["fuente"].str.upper()
+    return df_tx
+
 def render():
     df = load_sectores()
+    df_tx = load_transactions()
+    fp_mask = (df_tx["source"].eq("FONPLATA")) & (df_tx["transactiontype_code"] == 2)
+    fp_min, fp_max = df_tx.loc[fp_mask, "value_usd"].agg(["min", "max"])
     min_year, max_year = int(df["year"].min()), int(df["year"].max())
     source_list = sorted(df["source"].dropna().unique())
     selected_sources = source_list
@@ -120,6 +142,7 @@ def render():
             selected_countries_tabla = st.multiselect(
                 "País", country_list_tabla, default=country_list_tabla, key="paises_maestra"
             )
+        rango_fp = st.checkbox("Rango FP")
     # Apply filters
     mask = (df["year"].between(*year_range)) & (df["value_usd"] >= 0)
     df_f = df[mask].copy()
@@ -133,6 +156,13 @@ def render():
     elif subpage == "Tabla maestra":
         df_f = df_f[df_f["source"].isin(selected_sources)]
         df_f = df_f[df_f["recipientcountry_codename"].isin(selected_countries_tabla)]
+    if rango_fp:
+        valid_tx = df_tx[
+            (df_tx["transactiontype_code"] == 2)
+            & (df_tx["value_usd"].between(fp_min, fp_max))
+        ]
+        keys = ["iatiidentifier", "transactiondate_isodate", "value_usd"]
+        df_f = df_f.merge(valid_tx[keys].drop_duplicates(), on=keys, how="inner")
     top_n = 10
 
     # Mapear los macro sectores presentes a los colores predefinidos para
