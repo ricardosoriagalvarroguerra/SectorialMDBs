@@ -495,17 +495,7 @@ def render():
             df_base["source"].isin(selected_sources)
             & df_base["recipientcountry_codename"].isin(selected_countries)
         ]
-        group_cols = ["macro_sector"]
-        symbol_col = None
-        if len(selected_sources) > 1 and len(selected_countries) > 1:
-            group_cols += ["source", "recipientcountry_codename"]
-            symbol_col = "grupo"
-        elif len(selected_sources) > 1:
-            group_cols.append("source")
-            symbol_col = "source"
-        elif len(selected_countries) > 1:
-            group_cols.append("recipientcountry_codename")
-            symbol_col = "recipientcountry_codename"
+        group_cols = ["macro_sector", "source", "recipientcountry_codename"]
         bubble_df = (
             df_focus.groupby(group_cols).agg(
                 sum_usd=("value_usd", lambda x: x.sum() / 1e6),
@@ -513,40 +503,43 @@ def render():
                 ops=("iatiidentifier", "count"),
             )
         ).reset_index()
-        if symbol_col == "grupo":
-            bubble_df["grupo"] = (
-                bubble_df["source"] + " - " + bubble_df["recipientcountry_codename"]
-            )
-        symbol_map = None
-        if symbol_col:
-            symbols = [
-                "circle",
-                "square",
-                "diamond",
-                "cross",
-                "x",
-                "triangle-up",
-                "triangle-down",
-                "triangle-left",
-                "triangle-right",
-            ]
-            symbol_map = {
-                name: symbols[i % len(symbols)]
-                for i, name in enumerate(bubble_df[symbol_col].unique())
-            }
+        symbols = [
+            "circle",
+            "square",
+            "diamond",
+            "cross",
+            "x",
+            "triangle-up",
+            "triangle-down",
+            "triangle-left",
+            "triangle-right",
+        ]
+        symbol_map = {
+            sector: symbols[i % len(symbols)]
+            for i, sector in enumerate(bubble_df["macro_sector"].unique())
+        }
+        source_color_map = {
+            "FONPLATA": "#c1121f",
+            "IADB": "#284b63",
+            "WorldBank": "#5fa8d3",
+            "CAF": "#29bf12",
+        }
         fig_bubble = px.scatter(
             bubble_df,
             x="mean_usd",
             y="sum_usd",
-            color="macro_sector",
-            hover_name="macro_sector",
-            hover_data={"ops": True},
+            color="source",
+            symbol="macro_sector",
+            hover_name="recipientcountry_codename",
+            hover_data={"ops": True, "macro_sector": True},
             labels={
                 "mean_usd": "Ticket promedio (millones)",
                 "sum_usd": "Total USD (millones)",
+                "source": "MDB",
+                "macro_sector": "Macro sector",
+                "recipientcountry_codename": "País",
             },
-            color_discrete_map=macro_color_map,
-            symbol=symbol_col,
+            color_discrete_map=source_color_map,
             symbol_map=symbol_map,
         )
         fig_bubble.update_traces(marker=dict(size=12))
