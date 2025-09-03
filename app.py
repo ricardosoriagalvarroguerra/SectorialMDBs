@@ -379,8 +379,7 @@ elif pagina == 'Plazos y Tasas':
 
     # Gráficos organizados en filas
     import plotly.express as px
-    from streamlit import columns
-    
+
     # Primera fila: Argentina y Bolivia
     col1, col2 = st.columns(2)
     
@@ -502,8 +501,7 @@ elif pagina == 'Comprometido':
     
     if paises_disponibles:
         import plotly.express as px
-        from streamlit import columns
-        
+
         # Primera fila: Argentina y Bolivia
         col1, col2 = st.columns(2)
         
