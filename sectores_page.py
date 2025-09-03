@@ -538,18 +538,18 @@ def render():
             bubble_df,
             x="mean_usd",
             y="sum_usd",
-            size="ops",
             color="macro_sector",
             hover_name="macro_sector",
+            hover_data={"ops": True},
             labels={
                 "mean_usd": "Ticket promedio (millones)",
                 "sum_usd": "Total USD (millones)",
-                "ops": "# ops",
             },
             color_discrete_map=macro_color_map,
             symbol=symbol_col,
             symbol_map=symbol_map,
         )
+        fig_bubble.update_traces(marker=dict(size=12))
         st.plotly_chart(fig_bubble, use_container_width=True)
 
         # El diagrama de Sankey no debe verse afectado por los filtros de
