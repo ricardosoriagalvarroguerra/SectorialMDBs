@@ -619,6 +619,18 @@ def render():
         country_nodes = sankey_df["recipientcountry_codename"].unique().tolist()
         nodes = sources_nodes + macro_nodes + country_nodes
         node_indices = {name: i for i, name in enumerate(nodes)}
+
+        # Filtros específicos para el diagrama de Sankey
+        focus_options = ["Todos", "MDBs", "Países", "Macro sectores"]
+        focus = st.selectbox("Resaltar en Sankey", focus_options, index=0)
+        focus_value = None
+        if focus == "MDBs":
+            focus_value = st.selectbox("MDB", sources_nodes)
+        elif focus == "Países":
+            focus_value = st.selectbox("País", country_nodes)
+        elif focus == "Macro sectores":
+            focus_value = st.selectbox("Macro sector", macro_nodes)
+
         link_colors = []
         links = {"source": [], "target": [], "value": [], "color": link_colors}
         source_palette = px.colors.qualitative.Plotly
@@ -632,18 +644,33 @@ def render():
             s: custom_colors.get(s, source_palette[i % len(source_palette)])
             for i, s in enumerate(sources_nodes)
         }
+
+        grey_color = "rgba(200,200,200,0.2)"
+
+        def highlight_row(row):
+            if focus == "MDBs" and focus_value:
+                return row.source == focus_value
+            if focus == "Países" and focus_value:
+                return row.recipientcountry_codename == focus_value
+            if focus == "Macro sectores" and focus_value:
+                return row.macro_sector == focus_value
+            return True
+
         for row in sankey_df.itertuples():
             color = source_color_map[row.source]
+            highlight = highlight_row(row)
             links["source"].append(node_indices[row.source])
             links["target"].append(node_indices[row.macro_sector])
             links["value"].append(row.value_usd)
-            link_colors.append(color)
+            link_colors.append(color if highlight else grey_color)
         for row in sankey_df.itertuples():
             color = source_color_map[row.source]
+            highlight = highlight_row(row)
             links["source"].append(node_indices[row.macro_sector])
             links["target"].append(node_indices[row.recipientcountry_codename])
             links["value"].append(row.value_usd)
-            link_colors.append(color)
+            link_colors.append(color if highlight else grey_color)
+
         fig_sankey = go.Figure(
             go.Sankey(
                 node=dict(label=nodes),
