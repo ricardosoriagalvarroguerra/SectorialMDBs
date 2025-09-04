@@ -680,7 +680,7 @@ def render():
             node_base_color = [node_default_color] * len(nodes)
             node_highlight = [False] * len(nodes)
             theme_base = st.get_option("theme.base") or "light"
-            macro_country_color = "#000000" if theme_base == "light" else "#FFFFFF"
+            macro_country_color = "#D3D3D3"
             label_color = "#FFFFFF" if theme_base == "light" else "#000000"
 
             def highlight_row(row):
@@ -718,6 +718,7 @@ def render():
             for name in macro_nodes + country_nodes:
                 idx = node_indices[name]
                 node_base_color[idx] = macro_country_color
+                node_highlight[idx] = True
 
             node_colors = [
                 node_base_color[i] if node_highlight[i] else grey_color
