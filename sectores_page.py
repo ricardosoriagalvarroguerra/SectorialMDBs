@@ -676,6 +676,11 @@ def render():
             }
 
             grey_color = "rgba(200,200,200,0.2)"
+            node_default_color = "rgba(200,200,200,0.8)"
+            node_base_color = [node_default_color] * len(nodes)
+            node_highlight = [False] * len(nodes)
+            theme_base = st.get_option("theme.base") or "light"
+            label_color = "white" if theme_base == "dark" else "black"
 
             def highlight_row(row):
                 if focus == "MDBs" and focus_value:
@@ -689,27 +694,42 @@ def render():
             for row in sankey_df.itertuples():
                 color = source_color_map[row.source]
                 highlight = highlight_row(row)
-                links["source"].append(node_indices[row.source])
-                links["target"].append(node_indices[row.macro_sector])
+                s_idx = node_indices[row.source]
+                t_idx = node_indices[row.macro_sector]
+                links["source"].append(s_idx)
+                links["target"].append(t_idx)
                 links["value"].append(row.value_usd)
                 link_colors.append(color if highlight else grey_color)
+                node_base_color[s_idx] = color
+                node_highlight[s_idx] = node_highlight[s_idx] or highlight
             for row in sankey_df.itertuples():
                 color = source_color_map[row.source]
                 highlight = highlight_row(row)
-                links["source"].append(node_indices[row.macro_sector])
-                links["target"].append(node_indices[row.recipientcountry_codename])
+                s_idx = node_indices[row.macro_sector]
+                t_idx = node_indices[row.recipientcountry_codename]
+                links["source"].append(s_idx)
+                links["target"].append(t_idx)
                 links["value"].append(row.value_usd)
                 link_colors.append(color if highlight else grey_color)
+                if node_base_color[s_idx] == node_default_color:
+                    node_base_color[s_idx] = color
+                node_highlight[s_idx] = node_highlight[s_idx] or highlight
+
+            node_colors = [
+                node_base_color[i] if node_highlight[i] else grey_color
+                for i in range(len(nodes))
+            ]
 
             fig_sankey = go.Figure(
                 go.Sankey(
-                    node=dict(label=nodes),
+                    node=dict(label=nodes, color=node_colors),
                     link=dict(
                         source=links["source"],
                         target=links["target"],
                         value=links["value"],
                         color=links["color"],
                     ),
+                    textfont=dict(color=label_color),
                 )
             )
             fig_sankey.update_layout(height=600, width=1000)
