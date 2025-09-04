@@ -680,7 +680,8 @@ def render():
             node_base_color = [node_default_color] * len(nodes)
             node_highlight = [False] * len(nodes)
             theme_base = st.get_option("theme.base") or "light"
-            label_color = "white" if theme_base == "dark" else "black"
+            macro_country_color = "#000000" if theme_base == "light" else "#FFFFFF"
+            label_color = "#FFFFFF" if theme_base == "light" else "#000000"
 
             def highlight_row(row):
                 if focus == "MDBs" and focus_value:
@@ -711,9 +712,12 @@ def render():
                 links["target"].append(t_idx)
                 links["value"].append(row.value_usd)
                 link_colors.append(color if highlight else grey_color)
-                if node_base_color[s_idx] == node_default_color:
-                    node_base_color[s_idx] = color
                 node_highlight[s_idx] = node_highlight[s_idx] or highlight
+                node_highlight[t_idx] = node_highlight[t_idx] or highlight
+
+            for name in macro_nodes + country_nodes:
+                idx = node_indices[name]
+                node_base_color[idx] = macro_country_color
 
             node_colors = [
                 node_base_color[i] if node_highlight[i] else grey_color
