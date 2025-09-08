@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
+import plotly.express as px
 from sectores_page import render as render_sectores
 from macrosectores import macrosectores_dict, get_macrosector
 
@@ -1058,7 +1059,7 @@ elif pagina == 'Transacciones':
                         outgoing_commitments['macrosector'] = outgoing_commitments['sector_codename'].apply(get_macrosector)
                         df_filtered = outgoing_commitments[outgoing_commitments['macrosector'] != "No clasificado"].copy()
                         categoria_column = 'macrosector'
-                        
+
                         # Colores para macrosectores - nueva paleta
                         colors = {
                             'Social': '#15616D',
@@ -1069,6 +1070,35 @@ elif pagina == 'Transacciones':
                             'Multisectorial/Otros': '#BC5308'
                         }
                         categorias = list(colors.keys())
+
+                        sector_options = ["Todos"] + sorted(df_filtered['macrosector'].dropna().unique())
+                        sector_detalle = st.selectbox(
+                            "Seleccionar macrosector",
+                            sector_options,
+                            index=0,
+                        )
+                        if st.button("Ver por sector") and sector_detalle != "Todos":
+                            detalle_df = df_filtered[df_filtered['macrosector'] == sector_detalle].copy()
+                            detalle_df['year'] = detalle_df['transactiondate_isodate'].dt.year
+                            detalle_df = (
+                                detalle_df.groupby(['year', 'sector_codename'])['value_usd']
+                                .sum()
+                                .reset_index()
+                            )
+                            detalle_df['value_usd_millions'] = detalle_df['value_usd'] / 1_000_000
+                            fig_detalle = px.bar(
+                                detalle_df,
+                                x='year',
+                                y='value_usd_millions',
+                                color='sector_codename',
+                                labels={
+                                    'year': 'Año',
+                                    'value_usd_millions': 'USD (Millones)',
+                                    'sector_codename': 'Categoría',
+                                },
+                                barmode='stack',
+                            )
+                            st.plotly_chart(fig_detalle, use_container_width=True)
                         
                     elif visualization_type == "Modalidad":
                         df_filtered = outgoing_commitments.copy()
