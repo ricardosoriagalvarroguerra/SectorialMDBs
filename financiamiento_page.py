@@ -159,7 +159,10 @@ def render() -> None:
             fig.update_yaxes(range=[0, y_axis_max], tickformat=",.2f")
         else:
             fig.update_yaxes(tickformat=",.2f")
-        fig.update_layout(margin=dict(l=0, r=0, t=40, b=0))
+        fig.update_layout(
+            title={"text": source, "x": 0.5, "xanchor": "center"},
+            margin=dict(l=0, r=0, t=40, b=0),
+        )
 
         columns[idx % 2].plotly_chart(fig, use_container_width=True)
         if idx % 2 == 1 and idx < len(ordered_sources) - 1:
