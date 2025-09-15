@@ -4,7 +4,6 @@ import plotly.express as px
 import plotly.graph_objects as go
 from pandas.api.types import is_string_dtype
 from io import BytesIO
-from macrosectores import get_macrosector
 
 # Utilidad para manejar multiselect con opción "Seleccionar todo"
 def handle_multiselect_behavior(selected_options, all_options, select_all_text):
@@ -26,69 +25,63 @@ MACRO_COLOR_MAP = {
 
 @st.cache_data
 def load_sectores() -> pd.DataFrame:
-    df = pd.read_parquet("sectores.parquet")
+    df = pd.read_parquet("BDDGLOBALMERGED_ACTUALIZADO.parquet")
     df["transactiondate_isodate"] = pd.to_datetime(df["transactiondate_isodate"])
     if is_string_dtype(df["sector_code"]):
         df["sector_code"] = pd.to_numeric(df["sector_code"], errors="coerce")
     df["sector_code"] = df["sector_code"].astype("Int64")
     df["year"] = df["transactiondate_isodate"].dt.year
     df["month"] = df["transactiondate_isodate"].dt.to_period("M").astype(str)
-    df["macro_sector"] = df["sector_codename"].map(get_macrosector)
-    df.loc[df["sector_codename"].eq("Sectors not specified"), "macro_sector"] = (
-        "Administrativo / No asignado"
-    )
     return df
-
-
-@st.cache_data
-def load_transactions() -> pd.DataFrame:
-    df_tx = pd.read_parquet(
-        "BDDGLOBALMERGED_ACTUALIZADO.parquet",
-        columns=[
-            "iatiidentifier",
-            "transactiontype_code",
-            "transactiondate_isodate",
-            "value_usd",
-            "fuente",
-        ],
-    )
-    df_tx["transactiondate_isodate"] = pd.to_datetime(
-        df_tx["transactiondate_isodate"]
-    )
-    df_tx["source"] = df_tx["fuente"].str.upper()
-    return df_tx
 
 def render():
     df = load_sectores()
-    df_tx = load_transactions()
-    fp_mask = (df_tx["source"].eq("FONPLATA")) & (df_tx["transactiontype_code"] == 2)
-    fp_min, fp_max = df_tx.loc[fp_mask, "value_usd"].agg(["min", "max"])
+    fp_mask = df["source"].str.upper().eq("FONPLATA")
+    if fp_mask.any():
+        fp_min, fp_max = df.loc[fp_mask, "value_usd"].agg(["min", "max"])
+    else:
+        fp_min = fp_max = 0
     min_year, max_year = int(df["year"].min()), int(df["year"].max())
     source_list = sorted(df["source"].dropna().unique())
     selected_sources = source_list
-    country_code_map = {
-        "Argentina": ["AR"],
-        "Bolivia": ["BO"],
-        "Brasil": ["BR"],
-        "Paraguay": ["PY"],
-        "Uruguay": ["UY"],
+    country_name_map = {
+        "Argentina": ["Argentina"],
+        "Bolivia": ["Bolivia (Plurinational State of)"],
+        "Brasil": ["Brazil"],
+        "Paraguay": ["Paraguay"],
+        "Uruguay": ["Uruguay"],
         "Resto Latam": [
-            "CL",
-            "CR",
-            "CO",
-            "GT",
-            "EC",
-            "HN",
-            "MX",
-            "NI",
-            "PA",
-            "PE",
-            "SV",
+            "Barbados",
+            "Bahamas (the)",
+            "Belize",
+            "Chile",
+            "Costa Rica",
+            "Colombia",
+            "Dominican Republic (the)",
+            "Guatemala",
+            "Guyana",
+            "Ecuador",
+            "Honduras",
+            "Jamaica",
+            "Haiti",
+            "Mexico",
+            "Nicaragua",
+            "Panama",
+            "Peru",
+            "Suriname",
+            "El Salvador",
+            "Venezuela (Bolivarian Republic of)",
+            "Trinidad and Tobago",
+            "Antigua and Barbuda",
+            "Dominica",
+            "Grenada",
+            "Saint Lucia",
+            "Saint Vincent and the Grenadines",
         ],
     }
-    country_options = list(country_code_map.keys())
-    all_country_codes = [code for codes in country_code_map.values() for code in codes]
-    selected_country_codes = all_country_codes
+    country_options = list(country_name_map.keys())
+    all_country_names = [name for names in country_name_map.values() for name in names]
+    selected_country_names = all_country_names
     country_list_tabla = sorted(df["recipientcountry_codename"].dropna().unique())
     selected_countries_tabla = country_list_tabla
     with st.sidebar:
@@ -116,9 +109,9 @@ def render():
             selected_country_labels = handle_multiselect_behavior(
                 country_sel, country_options, "Todos los países"
             )
-            selected_country_codes = []
+            selected_country_names = []
             for label in selected_country_labels:
-                selected_country_codes.extend(country_code_map[label])
+                selected_country_names.extend(country_name_map[label])
         elif subpage == "Matrices de concentración":
             selected_sources = st.multiselect(
                 "Source (MDBs)",
@@ -132,9 +125,9 @@ def render():
                 default=["Argentina", "Bolivia", "Brasil", "Paraguay", "Uruguay"],
                 key="paises_matrices",
             )
-            selected_country_codes = []
+            selected_country_names = []
             for label in country_sel:
-                selected_country_codes.extend(country_code_map.get(label, []))
+                selected_country_names.extend(country_name_map.get(label, []))
         elif subpage == "Tabla maestra":
             selected_sources = st.multiselect(
                 "Source (MDBs)", source_list, default=source_list, key="mdbs_maestra"
@@ -149,20 +142,15 @@ def render():
     df_f = df_f[df_f["macro_sector"].ne("No clasificado")]
     if subpage == "Panorama de sectores" and selected_sources:
         df_f = df_f[df_f["source"].isin(selected_sources)]
-        df_f = df_f[df_f["recipientcountry_code"].isin(selected_country_codes)]
+        df_f = df_f[df_f["recipientcountry_codename"].isin(selected_country_names)]
     elif subpage == "Matrices de concentración" and selected_sources:
         df_f = df_f[df_f["source"].isin(selected_sources)]
-        df_f = df_f[df_f["recipientcountry_code"].isin(selected_country_codes)]
+        df_f = df_f[df_f["recipientcountry_codename"].isin(selected_country_names)]
     elif subpage == "Tabla maestra":
         df_f = df_f[df_f["source"].isin(selected_sources)]
         df_f = df_f[df_f["recipientcountry_codename"].isin(selected_countries_tabla)]
     if rango_fp:
-        valid_tx = df_tx[
-            (df_tx["transactiontype_code"] == 2)
-            & (df_tx["value_usd"].between(fp_min, fp_max))
-        ]
-        keys = ["iatiidentifier", "transactiondate_isodate", "value_usd"]
-        df_f = df_f.merge(valid_tx[keys].drop_duplicates(), on=keys, how="inner")
+        df_f = df_f[df_f["value_usd"].between(fp_min, fp_max)]
     top_n = 10
 
     # Mapear los macro sectores presentes a los colores predefinidos para
@@ -401,12 +389,12 @@ def render():
             st.plotly_chart(fig_source, use_container_width=True)
 
         st.subheader("Detalle por país")
-        focus_codes = ["AR", "BR", "BO", "PY", "UY"]
-        for code in focus_codes:
-            country_df = sec_df[sec_df["recipientcountry_code"] == code]
+        focus_labels = ["Argentina", "Brasil", "Bolivia", "Paraguay", "Uruguay"]
+        for label in focus_labels:
+            country_name = country_name_map[label][0]
+            country_df = sec_df[sec_df["recipientcountry_codename"] == country_name]
             if country_df.empty:
                 continue
-            country_name = country_df["recipientcountry_codename"].iloc[0]
             total_ops = country_df["iatiidentifier"].nunique()
             st.markdown(f"### {country_name} ({total_ops} actividades)")
             summary = (
@@ -436,7 +424,7 @@ def render():
 
     elif subpage == "Matrices de concentración":
         st.title("Matrices de concentración")
-        df_focus = df_f[df_f["recipientcountry_code"].isin(selected_country_codes)]
+        df_focus = df_f[df_f["recipientcountry_codename"].isin(selected_country_names)]
         sector_order = (
             df_focus.groupby("macro_sector")["value_usd"]
             .sum()
@@ -497,15 +485,11 @@ def render():
         st.plotly_chart(fig_heat2, use_container_width=True)
 
     elif subpage == "Intensidad y estructura":
-        allowed_codes = ["AR", "BO", "BR", "PY", "UY"]
-        df_base = df_f[df_f["recipientcountry_code"].isin(allowed_codes)]
+        allowed_labels = ["Argentina", "Bolivia", "Brasil", "Paraguay", "Uruguay"]
+        allowed_names = [country_name_map[l][0] for l in allowed_labels]
+        df_base = df_f[df_f["recipientcountry_codename"].isin(allowed_names)]
         source_opts = sorted(df_base["source"].dropna().unique())
-        country_map = (
-            df_base[["recipientcountry_code", "recipientcountry_codename"]]
-            .drop_duplicates()
-            .set_index("recipientcountry_code")["recipientcountry_codename"]
-        )
-        country_opts = [country_map[c] for c in allowed_codes if c in country_map]
+        country_opts = allowed_labels
         col_filters = st.columns(2)
         with col_filters[0]:
             source_sel = st.multiselect(
@@ -520,7 +504,7 @@ def render():
                 country_opts,
                 default=country_opts[:1],
             )
-            selected_countries = country_sel
+            selected_countries = [country_name_map[label][0] for label in country_sel]
         df_focus = df_base[
             df_base["source"].isin(selected_sources)
             & df_base["recipientcountry_codename"].isin(selected_countries)
