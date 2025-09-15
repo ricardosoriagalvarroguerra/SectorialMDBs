@@ -93,6 +93,9 @@ def render() -> None:
         st.info("No hay datos para los filtros seleccionados.")
         return
 
+    year_order = sorted(df_filtered["transaction_year"].unique())
+    year_order_str = [str(year) for year in year_order]
+
     available_sources = df_filtered["source"].dropna().unique().tolist()
     if not available_sources:
         st.info("No hay datos de fuentes para los filtros seleccionados.")
@@ -131,13 +134,14 @@ def render() -> None:
             .sort_values("transaction_year")
         )
         grouped["value_millions"] = grouped["value_usd"] / 1_000_000
+        grouped["transaction_year_str"] = grouped["transaction_year"].astype(str)
 
         fig = px.bar(
             grouped,
-            x="transaction_year",
+            x="transaction_year_str",
             y="value_millions",
             labels={
-                "transaction_year": "Año",
+                "transaction_year_str": "Año",
                 "value_millions": "Monto anual (millones USD)",
             },
             title=source,
@@ -146,7 +150,11 @@ def render() -> None:
         fig.update_traces(
             hovertemplate="Año: %{x}<br>Monto: %{y:.2f} millones USD<extra></extra>"
         )
-        fig.update_xaxes(type="category")
+        fig.update_xaxes(
+            type="category",
+            categoryorder="array",
+            categoryarray=year_order_str,
+        )
         if y_axis_max is not None:
             fig.update_yaxes(range=[0, y_axis_max], tickformat=",.2f")
         else:
@@ -179,16 +187,20 @@ def render() -> None:
 
     percentages["value_millions"] = percentages["value_usd"] / 1_000_000
     percentages["percentage"] = percentages["value_usd"] / percentages["year_total"] * 100
+    percentages["transaction_year_str"] = percentages["transaction_year"].astype(str)
 
     fig_total = px.bar(
         percentages,
-        x="transaction_year",
+        x="transaction_year_str",
         y="percentage",
         color="source",
         color_discrete_map=color_map,
-        category_orders={"source": ordered_sources},
+        category_orders={
+            "source": ordered_sources,
+            "transaction_year_str": year_order_str,
+        },
         labels={
-            "transaction_year": "Año",
+            "transaction_year_str": "Año",
             "percentage": "Participación (%)",
             "source": "Fuente",
         },
@@ -199,14 +211,21 @@ def render() -> None:
         barmode="stack",
         yaxis=dict(range=[0, 100]),
     )
-    fig_total.update_xaxes(type="category")
+    fig_total.update_xaxes(
+        type="category",
+        categoryorder="array",
+        categoryarray=year_order_str,
+    )
     fig_total.update_traces(texttemplate="%{y:.1f}%", textposition="inside")
 
     for trace in fig_total.data:
         source_name = trace.name
         source_rows = percentages[percentages["source"] == source_name]
         values_by_year = dict(
-            zip(source_rows["transaction_year"], source_rows["value_millions"])
+            zip(
+                source_rows["transaction_year_str"],
+                source_rows["value_millions"],
+            )
         )
         trace.customdata = [
             [values_by_year.get(x, 0)] for x in trace.x
