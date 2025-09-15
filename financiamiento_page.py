@@ -102,26 +102,30 @@ def render() -> None:
             continue
 
         grouped = (
-            source_df.groupby("transactiondate_isodate", as_index=False)["value_usd"]
+            source_df.assign(
+                transaction_year=source_df["transactiondate_isodate"].dt.year
+            )
+            .groupby("transaction_year", as_index=False)["value_usd"]
             .sum()
-            .sort_values("transactiondate_isodate")
+            .sort_values("transaction_year")
         )
         grouped["value_millions"] = grouped["value_usd"] / 1_000_000
 
         fig = px.bar(
             grouped,
-            x="transactiondate_isodate",
+            x="transaction_year",
             y="value_millions",
             labels={
-                "transactiondate_isodate": "Fecha de transacción",
-                "value_millions": "Monto (millones USD)",
+                "transaction_year": "Año",
+                "value_millions": "Monto anual (millones USD)",
             },
             title=source,
             color_discrete_sequence=[color_map[source]],
         )
         fig.update_traces(
-            hovertemplate="Fecha: %{x|%Y-%m-%d}<br>Monto: %{y:.2f} millones USD<extra></extra>"
+            hovertemplate="Año: %{x}<br>Monto: %{y:.2f} millones USD<extra></extra>"
         )
+        fig.update_xaxes(type="category")
         fig.update_yaxes(tickformat=",.2f")
         fig.update_layout(margin=dict(l=0, r=0, t=40, b=0))
 
@@ -145,20 +149,21 @@ def render() -> None:
     fig_total = px.bar(
         totals,
         x="total_label",
-        y="value_usd",
+        y="percentage",
         color="source",
-        barnorm="percent",
         color_discrete_map=color_map,
         category_orders={"source": ordered_sources},
         labels={
             "total_label": "",
-            "value_usd": "Participación (%)",
+            "percentage": "Participación (%)",
             "source": "Fuente",
         },
     )
     fig_total.update_layout(
         yaxis_title="Participación del total (%)",
         margin=dict(l=0, r=0, t=10, b=0),
+        barmode="stack",
+        yaxis=dict(range=[0, 100]),
     )
     fig_total.update_traces(texttemplate="%{y:.1f}%", textposition="inside")
 
