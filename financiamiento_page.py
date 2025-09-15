@@ -34,19 +34,30 @@ def render() -> None:
 
     df["macro_sector"] = df["macro_sector"].fillna("Sin dato")
     df["recipientcountry_codename"] = df["recipientcountry_codename"].fillna("Sin dato")
+    df["transaction_year"] = df["transactiondate_isodate"].dt.year
 
-    min_date = df["transactiondate_isodate"].min()
-    max_date = df["transactiondate_isodate"].max()
+    min_year = int(df["transaction_year"].min())
+    max_year = int(df["transaction_year"].max())
 
     with st.sidebar:
         st.header("Filtros")
-        date_range = st.slider(
-            "Rango de fechas",
-            min_value=min_date.to_pydatetime(),
-            max_value=max_date.to_pydatetime(),
-            value=(min_date.to_pydatetime(), max_date.to_pydatetime()),
-            format="YYYY-MM-DD",
-        )
+        if min_year == max_year:
+            selected_year = st.slider(
+                "Año disponible",
+                min_value=min_year,
+                max_value=max_year,
+                value=min_year,
+                step=1,
+            )
+            date_range = (selected_year, selected_year)
+        else:
+            date_range = st.slider(
+                "Rango de años",
+                min_value=min_year,
+                max_value=max_year,
+                value=(min_year, max_year),
+                step=1,
+            )
 
         countries = sorted(df["recipientcountry_codename"].unique())
         selected_countries = st.multiselect("País", options=countries, default=countries)
@@ -56,8 +67,8 @@ def render() -> None:
             "Macro sector", options=macro_sectors, default=macro_sectors
         )
 
-    start_date, end_date = [pd.to_datetime(dt) for dt in date_range]
-    df_filtered = df[df["transactiondate_isodate"].between(start_date, end_date)]
+    start_year, end_year = date_range
+    df_filtered = df[df["transaction_year"].between(start_year, end_year)]
 
     if selected_countries:
         df_filtered = df_filtered[
@@ -102,10 +113,7 @@ def render() -> None:
             continue
 
         grouped = (
-            source_df.assign(
-                transaction_year=source_df["transactiondate_isodate"].dt.year
-            )
-            .groupby("transaction_year", as_index=False)["value_usd"]
+            source_df.groupby("transaction_year", as_index=False)["value_usd"]
             .sum()
             .sort_values("transaction_year")
         )
@@ -135,26 +143,36 @@ def render() -> None:
 
     st.subheader("Participación porcentual de financiamiento por fuente")
 
-    totals = df_filtered.groupby("source", as_index=False)["value_usd"].sum()
-    totals = totals.set_index("source").loc[ordered_sources].reset_index()
-    total_value = totals["value_usd"].sum()
-    if total_value == 0:
+    percentages = (
+        df_filtered.groupby(["transaction_year", "source"], as_index=False)["value_usd"].sum()
+    )
+    percentages = (
+        percentages.sort_values(["transaction_year", "source"]).reset_index(drop=True)
+    )
+    if percentages.empty:
         st.info("No hay montos registrados para los filtros seleccionados.")
         return
 
-    totals["value_millions"] = totals["value_usd"] / 1_000_000
-    totals["percentage"] = totals["value_usd"] / total_value * 100
-    totals["total_label"] = "Total"
+    percentages["year_total"] = percentages.groupby("transaction_year")["value_usd"].transform(
+        "sum"
+    )
+    percentages = percentages[percentages["year_total"] > 0]
+    if percentages.empty:
+        st.info("No hay montos registrados para los filtros seleccionados.")
+        return
+
+    percentages["value_millions"] = percentages["value_usd"] / 1_000_000
+    percentages["percentage"] = percentages["value_usd"] / percentages["year_total"] * 100
 
     fig_total = px.bar(
-        totals,
-        x="total_label",
+        percentages,
+        x="transaction_year",
         y="percentage",
         color="source",
         color_discrete_map=color_map,
         category_orders={"source": ordered_sources},
         labels={
-            "total_label": "",
+            "transaction_year": "Año",
             "percentage": "Participación (%)",
             "source": "Fuente",
         },
@@ -165,17 +183,23 @@ def render() -> None:
         barmode="stack",
         yaxis=dict(range=[0, 100]),
     )
+    fig_total.update_xaxes(type="category")
     fig_total.update_traces(texttemplate="%{y:.1f}%", textposition="inside")
 
     for trace in fig_total.data:
         source_name = trace.name
-        row = totals[totals["source"] == source_name].iloc[0]
-        amount_text = format(row["value_millions"], ",.2f")
-        percentage_text = row["percentage"]
+        source_rows = percentages[percentages["source"] == source_name]
+        values_by_year = dict(
+            zip(source_rows["transaction_year"], source_rows["value_millions"])
+        )
+        trace.customdata = [
+            [values_by_year.get(x, 0)] for x in trace.x
+        ]
         trace.hovertemplate = (
             "Fuente: %{fullData.name}<br>"
-            f"Porcentaje: {percentage_text:.1f}%<br>"
-            f"Monto: {amount_text} millones USD<extra></extra>"
+            "Año: %{x}<br>"
+            "Porcentaje: %{y:.1f}%<br>"
+            "Monto: %{customdata[0]:,.2f} millones USD<extra></extra>"
         )
 
     st.plotly_chart(fig_total, use_container_width=True)
