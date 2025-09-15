@@ -4,7 +4,6 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import plotly.express as px
 from sectores_page import render as render_sectores
-from macrosectores import macrosectores_dict, get_macrosector
 
 # Diccionario de regiones
 regiones_dict = {
@@ -93,11 +92,9 @@ pagina = st.session_state.get('pagina', st.session_state.get('pagina_ids', 'Deud
 def load_iati_data():
     try:
         df = pd.read_parquet('BDDGLOBALMERGED_ACTUALIZADO.parquet')
+        df.rename(columns={"macro_sector": "macrosector"}, inplace=True)
         # Ajuste manual para proyecto específico con valor incorrecto
-        mask = (
-            (df['iatiidentifier'] == 'XM-DAC-46027-PY028') &
-            (df['transactiontype_code'] == 2)
-        )
+        mask = df['iatiidentifier'] == 'XM-DAC-46027-PY028'
         df.loc[mask, 'value_usd'] = 354200000
         return df
     except Exception:
@@ -701,8 +698,8 @@ elif pagina == 'Transacciones':
             st.session_state['selected_years'] = selected_years
             
             # Obtener datos filtrados para los filtros
-            outgoing_commitments = df_iati[df_iati['transactiontype_codename'] == 'Outgoing Commitment'].copy()
-            
+            outgoing_commitments = df_iati.copy()
+
             if len(outgoing_commitments) > 0:
                 # Convertir la columna de fecha
                 outgoing_commitments['transactiondate_isodate'] = pd.to_datetime(outgoing_commitments['transactiondate_isodate'])
@@ -757,19 +754,10 @@ elif pagina == 'Transacciones':
                     st.session_state['selected_modality'] = selected_modality
                 
                 # Filtro de macrosectores
-                if 'sector_codename' in outgoing_commitments.columns:
-                    sectors = sorted(outgoing_commitments['sector_codename'].dropna().astype(str).unique())
-                    
-                    # Crear lista de macrosectores disponibles
-                    available_macrosectors = set()
-                    for sector in sectors:
-                        macrosector = get_macrosector(sector)
-                        if macrosector != "No clasificado":
-                            available_macrosectors.add(macrosector)
-                    
-                    available_macrosectors = sorted(list(available_macrosectors))
-                    
-                    # Filtro de macrosectores
+                if 'macrosector' in outgoing_commitments.columns:
+                    available_macrosectors = sorted(
+                        outgoing_commitments['macrosector'].dropna().unique()
+                    )
                     selected_macrosector = st.sidebar.selectbox(
                         "Seleccionar Macrosector:",
                         ["Todos los macrosectores"] + available_macrosectors,
@@ -805,8 +793,7 @@ elif pagina == 'Transacciones':
         
         # Verificar si los datos IATI están cargados
         if df_iati is not None:
-            # Filtrar solo transacciones de tipo "Outgoing Commitment"
-            outgoing_commitments = df_iati[df_iati['transactiontype_codename'] == 'Outgoing Commitment'].copy()
+            outgoing_commitments = df_iati.copy()
             
             if len(outgoing_commitments) > 0:
                 # Convertir la columna de fecha
@@ -857,11 +844,9 @@ elif pagina == 'Transacciones':
                     ]
                 
                 # Aplicar filtro de macrosector
-                if selected_macrosector != "Todos los macrosectores" and 'sector_codename' in df_filtered_by_filters.columns:
-                    # Obtener sectores del macrosector seleccionado
-                    macrosector_sectors = macrosectores_dict.get(selected_macrosector, [])
+                if selected_macrosector != "Todos los macrosectores" and 'macrosector' in df_filtered_by_filters.columns:
                     df_filtered_by_filters = df_filtered_by_filters[
-                        df_filtered_by_filters['sector_codename'].astype(str).isin(macrosector_sectors)
+                        df_filtered_by_filters['macrosector'] == selected_macrosector
                     ]
                 
                 # Definir colores para cada institución
@@ -1015,8 +1000,7 @@ elif pagina == 'Transacciones':
         
         # Verificar si los datos IATI están cargados
         if df_iati is not None:
-            # Filtrar solo transacciones de tipo "Outgoing Commitment"
-            outgoing_commitments = df_iati[df_iati['transactiontype_codename'] == 'Outgoing Commitment'].copy()
+            outgoing_commitments = df_iati.copy()
             
             if len(outgoing_commitments) > 0:
                 # Convertir la columna de fecha
@@ -1031,10 +1015,16 @@ elif pagina == 'Transacciones':
                     (outgoing_commitments['transactiondate_isodate'].dt.year <= selected_years[1])
                 ]
                 
-                # Filtrar solo los países específicos: AR, BO, BR, PY, UY
-                paises_especificos = ['AR', 'BO', 'BR', 'PY', 'UY']
+                # Filtrar solo los países específicos
+                paises_especificos = [
+                    'Argentina',
+                    'Bolivia (Plurinational State of)',
+                    'Brazil',
+                    'Paraguay',
+                    'Uruguay'
+                ]
                 outgoing_commitments = outgoing_commitments[
-                    outgoing_commitments['recipientcountry_code'].isin(paises_especificos)
+                    outgoing_commitments['recipientcountry_codename'].isin(paises_especificos)
                 ]
                 
                 # Filtrar valores negativos de value_usd
@@ -1055,8 +1045,6 @@ elif pagina == 'Transacciones':
                         categoria_column = 'prefix'
                         
                     elif visualization_type == "Sectores":
-                        # Agregar columna de macrosector
-                        outgoing_commitments['macrosector'] = outgoing_commitments['sector_codename'].apply(get_macrosector)
                         df_filtered = outgoing_commitments[outgoing_commitments['macrosector'] != "No clasificado"].copy()
                         categoria_column = 'macrosector'
 
@@ -1130,8 +1118,14 @@ elif pagina == 'Transacciones':
                         st.subheader(f"Evolución Anual por País - {visualization_type}")
                         
                         # Definir el orden de los países
-                        paises_orden = ['AR', 'BO', 'BR', 'PY', 'UY']
-                        
+                        paises_orden = [
+                            'Argentina',
+                            'Bolivia (Plurinational State of)',
+                            'Brazil',
+                            'Paraguay',
+                            'Uruguay'
+                        ]
+
                         # Crear subplots: 2 filas, 3 columnas (primera fila: AR, BO, BR; segunda fila: PY, UY)
                         fig = make_subplots(
                             rows=2, cols=3,
@@ -1139,18 +1133,18 @@ elif pagina == 'Transacciones':
                             specs=[[{"secondary_y": False}, {"secondary_y": False}, {"secondary_y": False}],
                                    [{"secondary_y": False}, {"secondary_y": False}, {"secondary_y": False}]]
                         )
-                        
+
                         # Posiciones para cada país
                         positions = {
-                            'AR': (1, 1),  # Primera fila, primera columna
-                            'BO': (1, 2),  # Primera fila, segunda columna
-                            'BR': (1, 3),  # Primera fila, tercera columna
-                            'PY': (2, 1),  # Segunda fila, primera columna
-                            'UY': (2, 2)   # Segunda fila, segunda columna
+                            'Argentina': (1, 1),
+                            'Bolivia (Plurinational State of)': (1, 2),
+                            'Brazil': (1, 3),
+                            'Paraguay': (2, 1),
+                            'Uruguay': (2, 2)
                         }
-                        
+
                         for pais in paises_orden:
-                            pais_data = df_filtered[df_filtered['recipientcountry_code'] == pais]
+                            pais_data = df_filtered[df_filtered['recipientcountry_codename'] == pais]
                             
                             if len(pais_data) > 0:
                                 # Agrupar por año y categoría
