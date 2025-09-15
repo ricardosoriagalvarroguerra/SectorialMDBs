@@ -36,6 +36,11 @@ def render() -> None:
     df["recipientcountry_codename"] = df["recipientcountry_codename"].fillna("Sin dato")
     df["transaction_year"] = df["transactiondate_isodate"].dt.year
 
+    df = df[df["transaction_year"] >= 2013]
+    if df.empty:
+        st.info("No hay datos disponibles desde 2013 en adelante.")
+        return
+
     min_year = int(df["transaction_year"].min())
     max_year = int(df["transaction_year"].max())
 
@@ -106,6 +111,14 @@ def render() -> None:
 
     st.subheader("Evolución del financiamiento por fuente")
 
+    aggregated_sources = (
+        df_filtered.groupby(["source", "transaction_year"], as_index=False)["value_usd"].sum()
+    )
+    aggregated_sources["value_millions"] = aggregated_sources["value_usd"] / 1_000_000
+    y_axis_max = aggregated_sources["value_millions"].max() if not aggregated_sources.empty else None
+    if pd.isna(y_axis_max) or (y_axis_max is not None and y_axis_max <= 0):
+        y_axis_max = None
+
     columns = st.columns(2)
     for idx, source in enumerate(ordered_sources):
         source_df = df_filtered[df_filtered["source"] == source]
@@ -134,7 +147,10 @@ def render() -> None:
             hovertemplate="Año: %{x}<br>Monto: %{y:.2f} millones USD<extra></extra>"
         )
         fig.update_xaxes(type="category")
-        fig.update_yaxes(tickformat=",.2f")
+        if y_axis_max is not None:
+            fig.update_yaxes(range=[0, y_axis_max], tickformat=",.2f")
+        else:
+            fig.update_yaxes(tickformat=",.2f")
         fig.update_layout(margin=dict(l=0, r=0, t=40, b=0))
 
         columns[idx % 2].plotly_chart(fig, use_container_width=True)
