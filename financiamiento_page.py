@@ -128,6 +128,10 @@ def render() -> None:
         if source_df.empty:
             continue
 
+        source_key = source.lower().replace(" ", "")
+        remove_x_title = source_key in {"iadb", "fonplata"}
+        remove_y_title = source_key in {"iadb", "worldbank"}
+
         grouped = (
             source_df.groupby("transaction_year", as_index=False)["value_usd"]
             .sum()
@@ -159,6 +163,10 @@ def render() -> None:
             fig.update_yaxes(range=[0, y_axis_max], tickformat=",.2f")
         else:
             fig.update_yaxes(tickformat=",.2f")
+        if remove_x_title:
+            fig.update_xaxes(title_text=None)
+        if remove_y_title:
+            fig.update_yaxes(title_text=None)
         fig.update_layout(
             title={"text": source, "x": 0.5, "xanchor": "center"},
             margin=dict(l=0, r=0, t=40, b=0),
