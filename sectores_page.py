@@ -2,6 +2,7 @@ import pandas as pd
 import streamlit as st
 import plotly.express as px
 import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 from pandas.api.types import is_string_dtype
 from io import BytesIO
 
@@ -457,53 +458,84 @@ def render():
                     combined_sources.append(source)
 
         color_map = get_mdb_color_map(combined_sources)
-        chart_cols = st.columns(2)
+        subplot_titles = [
+            f"{macro_sel} - {country_sel}" for _, macro_sel, country_sel, _, _ in dist_results
+        ]
+        fig_pct = make_subplots(
+            rows=1,
+            cols=len(dist_results),
+            shared_yaxes=True,
+            subplot_titles=subplot_titles,
+            horizontal_spacing=0.12,
+        )
+
+        for idx, (label, macro_sel, country_sel, subset, dist_df) in enumerate(
+            dist_results, start=1
+        ):
+            if dist_df is None or dist_df.empty:
+                fig_pct.add_annotation(
+                    text="No hay datos para la selección realizada en este comparador.",
+                    x=0.5,
+                    y=0.5,
+                    xref=f"x{idx} domain",
+                    yref=f"y{idx} domain",
+                    showarrow=False,
+                    font=dict(color="#666", size=12),
+                )
+                continue
+
+            for source in dist_df["source"].unique():
+                source_df = dist_df[dist_df["source"] == source]
+                fig_pct.add_trace(
+                    go.Bar(
+                        x=source_df["year"],
+                        y=source_df["share"],
+                        name=source,
+                        marker_color=color_map.get(source),
+                        customdata=source_df[["share", "cumulative_value"]],
+                        hovertemplate=(
+                            "<b>Año:</b> %{x}<br>"
+                            "<b>MDB:</b> %{fullData.name}<br>"
+                            "<b>Participación acumulada:</b> %{customdata[0]:.1%}<br>"
+                            "<b>Monto acumulado:</b> %{customdata[1]:,.2f} millones"
+                            "<extra></extra>"
+                        ),
+                        legendgroup=source,
+                        showlegend=(idx == 1),
+                    ),
+                    row=1,
+                    col=idx,
+                )
+
+            fig_pct.update_xaxes(title_text="Año acumulado", row=1, col=idx)
+
+        fig_pct.update_yaxes(
+            range=[0, 1], tickformat=".0%", title_text="Participación (%)", row=1, col=1
+        )
+        fig_pct.update_layout(
+            barmode="stack",
+            legend=dict(
+                orientation="h",
+                yanchor="top",
+                y=-0.2,
+                xanchor="center",
+                x=0.5,
+                title_text="",
+            ),
+            margin=dict(t=70, b=120),
+        )
+        st.plotly_chart(fig_pct, use_container_width=True)
+
+        metric_cols = st.columns(len(dist_results))
         for col, (label, macro_sel, country_sel, subset, dist_df) in zip(
-            chart_cols, dist_results
+            metric_cols, dist_results
         ):
             col.markdown(f"**{macro_sel} - {country_sel}**")
-            if dist_df is None:
+            if dist_df is None or subset.empty:
                 col.warning(
                     "No hay datos para la selección realizada en este comparador."
                 )
                 continue
-
-            fig_pct = px.bar(
-                dist_df,
-                x="year",
-                y="share",
-                color="source",
-                color_discrete_map=color_map,
-                labels={
-                    "year": "Año acumulado",
-                    "share": "Participación acumulada",
-                    "source": "MDB",
-                },
-                custom_data=["share", "cumulative_value"],
-            )
-            fig_pct.update_traces(
-                hovertemplate=(
-                    "<b>Año:</b> %{x}<br>"
-                    "<b>MDB:</b> %{fullData.name}<br>"
-                    "<b>Participación acumulada:</b> %{customdata[0]:.1%}<br>"
-                    "<b>Monto acumulado:</b> %{customdata[1]:,.2f} millones"
-                    "<extra></extra>"
-                )
-            )
-            fig_pct.update_yaxes(range=[0, 1], tickformat=".0%", title="Participación (%)")
-            fig_pct.update_layout(
-                showlegend=(label == "A"),
-                legend=dict(
-                    orientation="h",
-                    yanchor="bottom",
-                    y=-0.2,
-                    xanchor="center",
-                    x=0.5,
-                    title_text="",
-                ),
-                margin=dict(t=40),
-            )
-            col.plotly_chart(fig_pct, use_container_width=True)
 
             total = subset["value_usd"].sum() / 1e6
             ops = len(subset)
