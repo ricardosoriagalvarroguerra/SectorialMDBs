@@ -473,12 +473,14 @@ def render():
             dist_results, start=1
         ):
             if dist_df is None or dist_df.empty:
+                x_axis = "x" if idx == 1 else f"x{idx}"
+                y_axis = "y" if idx == 1 else f"y{idx}"
                 fig_pct.add_annotation(
                     text="No hay datos para la selección realizada en este comparador.",
                     x=0.5,
                     y=0.5,
-                    xref=f"x{idx} domain",
-                    yref=f"y{idx} domain",
+                    xref=f"{x_axis} domain",
+                    yref=f"{y_axis} domain",
                     showarrow=False,
                     font=dict(color="#666", size=12),
                 )
