@@ -22,6 +22,37 @@ MACRO_COLOR_MAP = {
     "Administrativo / No asignado": "#FF7D00",
 }
 
+MDB_COLOR_MAP = {
+    "FONPLATA": "#c1121f",
+    "IADB": "#284b63",
+    "WorldBank": "#5fa8d3",
+    "CAF": "#29bf12",
+}
+
+
+def get_mdb_color_map(sources: list[str]) -> dict[str, str]:
+    """Return a color map for the given MDB sources respecting predefined colors."""
+
+    unique_sources = list(dict.fromkeys(sources))
+    if not unique_sources:
+        return {}
+
+    palette = (
+        px.colors.qualitative.Plotly
+        + px.colors.qualitative.D3
+        + px.colors.qualitative.Set2
+        + px.colors.qualitative.Set3
+    )
+    color_map: dict[str, str] = {}
+    extra_idx = 0
+    for source in unique_sources:
+        if source in MDB_COLOR_MAP:
+            color_map[source] = MDB_COLOR_MAP[source]
+        else:
+            color_map[source] = palette[extra_idx % len(palette)]
+            extra_idx += 1
+    return color_map
+
 
 @st.cache_data
 def load_sectores() -> pd.DataFrame:
@@ -345,6 +376,147 @@ def render():
                 f"- Mediana: {median:,.2f} millones"
             )
 
+        st.markdown("---")
+        st.subheader("Participación acumulada por MDB")
+        dist_sel_cols = st.columns(2)
+        with dist_sel_cols[0]:
+            sector_a_pct = st.selectbox(
+                "Macro sector A (participación)",
+                sector_list,
+                key="sector_a_pct",
+            )
+            country_a_pct = st.selectbox(
+                "País A (participación)",
+                country_list,
+                key="country_a_pct",
+            )
+        with dist_sel_cols[1]:
+            sector_b_pct = st.selectbox(
+                "Macro sector B (participación)",
+                sector_list,
+                key="sector_b_pct",
+            )
+            country_b_pct = st.selectbox(
+                "País B (participación)",
+                country_list,
+                key="country_b_pct",
+            )
+
+        comparator_inputs = [
+            ("A", sector_a_pct, country_a_pct),
+            ("B", sector_b_pct, country_b_pct),
+        ]
+        dist_results = []
+        combined_sources: list[str] = []
+
+        for label, macro_sel, country_sel in comparator_inputs:
+            subset = df_f[
+                (df_f["macro_sector"] == macro_sel)
+                & (df_f["recipientcountry_codename"] == country_sel)
+            ].copy()
+            if subset.empty:
+                dist_results.append((label, macro_sel, country_sel, subset, None))
+                continue
+
+            dist_df = (
+                subset.groupby(["year", "source"])["value_usd"].sum().reset_index()
+            )
+            if dist_df.empty:
+                dist_results.append((label, macro_sel, country_sel, subset, None))
+                continue
+
+            dist_df["value_usd"] = dist_df["value_usd"] / 1e6
+            all_years = sorted(dist_df["year"].unique())
+            all_sources = list(dict.fromkeys(dist_df["source"]))
+            full_index = pd.MultiIndex.from_product(
+                [all_years, all_sources], names=["year", "source"]
+            )
+            dist_df = (
+                dist_df.set_index(["year", "source"])
+                .reindex(full_index, fill_value=0)
+                .reset_index()
+                .sort_values(["source", "year"])
+            )
+            dist_df["cumulative_value"] = (
+                dist_df.groupby("source")["value_usd"].cumsum()
+            )
+            dist_df["total_cumulative"] = dist_df.groupby("year")[
+                "cumulative_value"
+            ].transform("sum")
+            dist_df = dist_df[dist_df["total_cumulative"] > 0]
+            if dist_df.empty:
+                dist_results.append((label, macro_sel, country_sel, subset, None))
+                continue
+
+            dist_df["share"] = dist_df["cumulative_value"] / dist_df[
+                "total_cumulative"
+            ]
+            dist_results.append((label, macro_sel, country_sel, subset, dist_df))
+            for source in all_sources:
+                if source not in combined_sources:
+                    combined_sources.append(source)
+
+        color_map = get_mdb_color_map(combined_sources)
+        chart_cols = st.columns(2)
+        for col, (label, macro_sel, country_sel, subset, dist_df) in zip(
+            chart_cols, dist_results
+        ):
+            col.markdown(f"**{macro_sel} - {country_sel}**")
+            if dist_df is None:
+                col.warning(
+                    "No hay datos para la selección realizada en este comparador."
+                )
+                continue
+
+            fig_pct = px.bar(
+                dist_df,
+                x="year",
+                y="cumulative_value",
+                color="source",
+                barnorm="percent",
+                color_discrete_map=color_map,
+                labels={
+                    "year": "Año acumulado",
+                    "cumulative_value": "Monto acumulado (millones USD)",
+                    "source": "MDB",
+                },
+                custom_data=["share", "cumulative_value"],
+            )
+            fig_pct.update_traces(
+                hovertemplate=(
+                    "<b>Año:</b> %{x}<br>"
+                    "<b>MDB:</b> %{fullData.name}<br>"
+                    "<b>Participación acumulada:</b> %{customdata[0]:.1%}<br>"
+                    "<b>Monto acumulado:</b> %{customdata[1]:,.2f} millones"
+                    "<extra></extra>"
+                )
+            )
+            fig_pct.update_yaxes(range=[0, 100], title="Participación (%)")
+            fig_pct.update_layout(
+                showlegend=(label == "A"),
+                legend=dict(
+                    orientation="h",
+                    yanchor="bottom",
+                    y=-0.2,
+                    xanchor="center",
+                    x=0.5,
+                    title_text="",
+                ),
+                margin=dict(t=40),
+            )
+            col.plotly_chart(fig_pct, use_container_width=True)
+
+            total = subset["value_usd"].sum() / 1e6
+            ops = len(subset)
+            ticket = total / ops if ops else 0
+            median = subset["value_usd"].median() / 1e6 if ops else 0
+            col.markdown(
+                f"- Total acumulado: {total:,.2f} millones\n"
+                f"- #ops: {ops}\n"
+                f"- Ticket promedio: {ticket:,.2f} millones\n"
+                f"- Mediana: {median:,.2f} millones"
+            )
+
     elif subpage == "Ficha de sector":
         sector_totals = (
             df_f.groupby("macro_sector")["value_usd"].sum().sort_values(ascending=False)
@@ -532,12 +704,10 @@ def render():
             sector: symbols[i % len(symbols)]
             for i, sector in enumerate(bubble_df["macro_sector"].unique())
         }
-        source_color_map = {
-            "FONPLATA": "#c1121f",
-            "IADB": "#284b63",
-            "WorldBank": "#5fa8d3",
-            "CAF": "#29bf12",
-        }
+        unique_sources = [
+            s for s in bubble_df["source"].unique().tolist() if pd.notna(s)
+        ]
+        source_color_map = get_mdb_color_map(unique_sources)
         fig_bubble = px.scatter(
             bubble_df,
             x="mean_usd",
