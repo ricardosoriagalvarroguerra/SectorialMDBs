@@ -471,13 +471,12 @@ def render():
             fig_pct = px.bar(
                 dist_df,
                 x="year",
-                y="cumulative_value",
+                y="share",
                 color="source",
-                barnorm="percent",
                 color_discrete_map=color_map,
                 labels={
                     "year": "Año acumulado",
-                    "cumulative_value": "Monto acumulado (millones USD)",
+                    "share": "Participación acumulada",
                     "source": "MDB",
                 },
                 custom_data=["share", "cumulative_value"],
@@ -491,7 +490,7 @@ def render():
                     "<extra></extra>"
                 )
             )
-            fig_pct.update_yaxes(range=[0, 100], title="Participación (%)")
+            fig_pct.update_yaxes(range=[0, 1], tickformat=".0%", title="Participación (%)")
             fig_pct.update_layout(
                 showlegend=(label == "A"),
                 legend=dict(
