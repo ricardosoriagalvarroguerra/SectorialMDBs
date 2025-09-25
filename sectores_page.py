@@ -6,6 +6,7 @@ from plotly.subplots import make_subplots
 from pandas.api.types import is_string_dtype
 from io import BytesIO
 
+from color_utils import get_mdb_color_map, order_sources
 from date_utils import parse_transaction_dates
 
 # Utilidad para manejar multiselect con opción "Seleccionar todo"
@@ -24,37 +25,6 @@ MACRO_COLOR_MAP = {
     "Multisectorial/Otros": "#78290F",
     "Administrativo / No asignado": "#FF7D00",
 }
-
-MDB_COLOR_MAP = {
-    "FONPLATA": "#c1121f",
-    "IADB": "#284b63",
-    "WorldBank": "#5fa8d3",
-    "CAF": "#29bf12",
-}
-
-
-def get_mdb_color_map(sources: list[str]) -> dict[str, str]:
-    """Return a color map for the given MDB sources respecting predefined colors."""
-
-    unique_sources = list(dict.fromkeys(sources))
-    if not unique_sources:
-        return {}
-
-    palette = (
-        px.colors.qualitative.Plotly
-        + px.colors.qualitative.D3
-        + px.colors.qualitative.Set2
-        + px.colors.qualitative.Set3
-    )
-    color_map: dict[str, str] = {}
-    extra_idx = 0
-    for source in unique_sources:
-        if source in MDB_COLOR_MAP:
-            color_map[source] = MDB_COLOR_MAP[source]
-        else:
-            color_map[source] = palette[extra_idx % len(palette)]
-            extra_idx += 1
-    return color_map
 
 
 @st.cache_data
@@ -87,7 +57,7 @@ def render():
             "Mostrando el rango disponible en la fuente de datos."
         )
         min_year, max_year = raw_min_year, raw_max_year
-    source_list = sorted(df["source"].dropna().unique())
+    source_list = order_sources(df["source"].dropna().unique())
     selected_sources = source_list
     country_name_map = {
         "Argentina": ["Argentina"],
@@ -322,7 +292,7 @@ def render():
 
     elif subpage == "Comparador A vs B":
         sector_list = sorted(df_f["macro_sector"].dropna().unique())
-        source_list = sorted(df_f["source"].dropna().unique())
+        source_list = order_sources(df_f["source"].dropna().unique())
         country_list = sorted(
             df_f["recipientcountry_codename"].dropna().unique()
         )
@@ -605,12 +575,16 @@ def render():
             fig_country.update_layout(yaxis={"categoryorder": "total ascending"})
             st.plotly_chart(fig_country, use_container_width=True)
         with col_source:
+            source_order = order_sources(top_sources["source"].tolist())
+            source_color_map = get_mdb_color_map(source_order)
             fig_source = px.bar(
                 top_sources,
                 x="source",
                 y="value_usd",
                 labels={"value_usd": "USD (millones)", "source": "MDB"},
-                color_discrete_sequence=["#fca311"],
+                color="source",
+                category_orders={"source": source_order},
+                color_discrete_map=source_color_map,
             )
             st.plotly_chart(fig_source, use_container_width=True)
 
@@ -714,7 +688,7 @@ def render():
         allowed_labels = ["Argentina", "Bolivia", "Brasil", "Paraguay", "Uruguay"]
         allowed_names = [country_name_map[l][0] for l in allowed_labels]
         df_base = df_f[df_f["recipientcountry_codename"].isin(allowed_names)]
-        source_opts = sorted(df_base["source"].dropna().unique())
+        source_opts = order_sources(df_base["source"].dropna().unique())
         country_opts = allowed_labels
         col_filters = st.columns(2)
         with col_filters[0]:
@@ -824,7 +798,7 @@ def render():
         sankey_df["value_usd"] = sankey_df["value_usd"] / 1e6
 
         # Filtros para el diagrama de Sankey
-        all_sources = sorted(sankey_df["source"].unique().tolist())
+        all_sources = order_sources(sankey_df["source"].unique().tolist())
         all_countries = sorted(
             sankey_df["recipientcountry_codename"].unique().tolist()
         )
@@ -850,7 +824,7 @@ def render():
         if sankey_df.empty:
             st.warning("No hay datos para las selecciones del Sankey")
         else:
-            sources_nodes = sorted(sankey_df["source"].unique().tolist())
+            sources_nodes = order_sources(sankey_df["source"].unique().tolist())
             macro_nodes = sorted(sankey_df["macro_sector"].unique().tolist())
             country_nodes = sorted(
                 sankey_df["recipientcountry_codename"].unique().tolist()
@@ -871,17 +845,7 @@ def render():
 
             link_colors = []
             links = {"source": [], "target": [], "value": [], "color": link_colors}
-            source_palette = px.colors.qualitative.Plotly
-            custom_colors = {
-                "FONPLATA": "#c1121f",
-                "IADB": "#006494",
-                "WorldBank": "#1b4965",
-                "CAF": "#38b000",
-            }
-            source_color_map = {
-                s: custom_colors.get(s, source_palette[i % len(source_palette)])
-                for i, s in enumerate(sources_nodes)
-            }
+            source_color_map = get_mdb_color_map(sources_nodes)
 
             grey_color = "rgba(200,200,200,0.2)"
             node_default_color = "rgba(200,200,200,0.8)"

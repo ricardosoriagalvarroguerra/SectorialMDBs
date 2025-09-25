@@ -2,27 +2,9 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-from itertools import cycle
 
+from color_utils import get_mdb_color_map, order_sources
 from date_utils import parse_transaction_dates
-
-COLOR_MAP = {
-    "FONPLATA": "#c1121f",
-    "IADB": "#003566",
-    "worldbank": "#6096ba",
-    "CAF": "#38b000",
-}
-
-
-def build_color_map(sources):
-    """Return a color map that preserves predefined colors."""
-
-    color_cycle = cycle(px.colors.qualitative.Plotly)
-    color_map = COLOR_MAP.copy()
-    for source in sources:
-        if source not in color_map:
-            color_map[source] = next(color_cycle)
-    return color_map
 
 
 @st.cache_data
@@ -66,7 +48,7 @@ def render() -> None:
 
     country_list = sorted(df["recipientcountry_codename"].unique())
     macro_sectors = sorted(df["macro_sector"].unique())
-    source_list = sorted(df["source"].dropna().unique())
+    source_list = order_sources(df["source"].dropna().unique())
 
     focus_countries = [
         "Argentina",
@@ -163,11 +145,8 @@ def render() -> None:
             st.info("No hay datos de fuentes para los filtros seleccionados.")
             return
 
-        ordered_sources = [
-            *[source for source in COLOR_MAP if source in available_sources],
-            *sorted(source for source in available_sources if source not in COLOR_MAP),
-        ]
-        color_map = build_color_map(ordered_sources)
+        ordered_sources = order_sources(available_sources)
+        color_map = get_mdb_color_map(ordered_sources)
 
         st.subheader("Evolución del financiamiento por fuente")
 
@@ -371,7 +350,7 @@ def render() -> None:
             country: symbol_sequence[i % len(symbol_sequence)]
             for i, country in enumerate(bubble_df["recipientcountry_codename"].unique())
         }
-        color_map = build_color_map(bubble_df["source"].unique())
+        color_map = get_mdb_color_map(bubble_df["source"].unique())
 
         fig_bubble = px.scatter(
             bubble_df,
@@ -454,7 +433,7 @@ def render() -> None:
         )
         sankey_df["value_usd"] = sankey_df["value_usd"] / 1_000_000
 
-        all_sources = sorted(sankey_df["source"].unique().tolist())
+        all_sources = order_sources(sankey_df["source"].unique().tolist())
         all_countries = sorted(sankey_df["recipientcountry_codename"].unique().tolist())
 
         filter_cols = st.columns(2)
@@ -475,7 +454,7 @@ def render() -> None:
             st.warning("No hay datos para las selecciones del Sankey")
             return
 
-        sources_nodes = sorted(sankey_df["source"].unique().tolist())
+        sources_nodes = order_sources(sankey_df["source"].unique().tolist())
         country_nodes = sorted(
             sankey_df["recipientcountry_codename"].unique().tolist()
         )
@@ -490,11 +469,8 @@ def render() -> None:
         elif focus == "Países" and country_nodes:
             focus_value = st.selectbox("País", country_nodes)
 
-        ordered_sources = [
-            *[source for source in COLOR_MAP if source in sources_nodes],
-            *sorted(source for source in sources_nodes if source not in COLOR_MAP),
-        ]
-        source_color_map = build_color_map(ordered_sources)
+        ordered_sources = order_sources(sources_nodes)
+        source_color_map = get_mdb_color_map(ordered_sources)
 
         grey_color = "rgba(200,200,200,0.2)"
         node_default_color = "rgba(200,200,200,0.8)"
