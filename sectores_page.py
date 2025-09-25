@@ -77,7 +77,16 @@ def render():
         fp_min, fp_max = df.loc[fp_mask, "value_usd"].agg(["min", "max"])
     else:
         fp_min = fp_max = 0
-    min_year, max_year = int(df["year"].min()), int(df["year"].max())
+    raw_min_year, raw_max_year = int(df["year"].min()), int(df["year"].max())
+    desired_min_year, desired_max_year = 2005, 2024
+    min_year = max(desired_min_year, raw_min_year)
+    max_year = min(desired_max_year, raw_max_year)
+    if min_year > max_year:
+        st.warning(
+            "No hay datos disponibles entre los años 2005 y 2024. "
+            "Mostrando el rango disponible en la fuente de datos."
+        )
+        min_year, max_year = raw_min_year, raw_max_year
     source_list = sorted(df["source"].dropna().unique())
     selected_sources = source_list
     country_name_map = {
