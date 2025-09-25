@@ -229,6 +229,7 @@ def render() -> None:
             fig.update_layout(
                 title={"text": source, "x": 0.5, "xanchor": "center"},
                 margin=dict(l=0, r=0, t=40, b=0),
+                height=280,
             )
 
             columns[idx % 2].plotly_chart(fig, use_container_width=True)
@@ -280,6 +281,7 @@ def render() -> None:
             margin=dict(l=0, r=0, t=10, b=0),
             barmode="stack",
             yaxis=dict(range=[0, 100]),
+            height=360,
         )
         fig_total.update_xaxes(
             type="category",
