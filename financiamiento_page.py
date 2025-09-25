@@ -48,10 +48,16 @@ def render() -> None:
     df["recipientcountry_codename"] = df["recipientcountry_codename"].fillna("Sin dato")
     df["transaction_year"] = df["transactiondate_isodate"].dt.year
 
-    df = df[df["transaction_year"] >= 2013]
-    if df.empty:
-        st.info("No hay datos disponibles desde 2013 en adelante.")
-        return
+    recent_data_mask = df["transaction_year"] >= 2013
+    if recent_data_mask.any():
+        df = df[recent_data_mask]
+    else:
+        min_available_year = int(df["transaction_year"].min())
+        max_available_year = int(df["transaction_year"].max())
+        st.warning(
+            "No se encontraron datos a partir de 2013. Se mostrarán los "
+            f"registros disponibles entre {min_available_year} y {max_available_year}."
+        )
 
     min_year = int(df["transaction_year"].min())
     max_year = int(df["transaction_year"].max())

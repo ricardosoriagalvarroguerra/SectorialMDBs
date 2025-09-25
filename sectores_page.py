@@ -117,7 +117,15 @@ def render():
     country_list_tabla = sorted(df["recipientcountry_codename"].dropna().unique())
     selected_countries_tabla = country_list_tabla
     with st.sidebar:
-        year_range = st.slider("Año", min_year, max_year, (min_year, max_year), step=1)
+        if min_year == max_year:
+            st.info(
+                f"Solo hay datos disponibles para el año {min_year}. Se utilizará ese rango."
+            )
+            year_range = (min_year, max_year)
+        else:
+            year_range = st.slider(
+                "Año", min_year, max_year, (min_year, max_year), step=1
+            )
         subpage = st.radio(
             "Subpáginas",
             [
