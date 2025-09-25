@@ -14,6 +14,15 @@ def handle_multiselect_behavior(selected_options, all_options, select_all_text):
         return all_options
     return [opt for opt in selected_options if opt != select_all_text]
 
+
+def get_default_index(options: list[str], desired_option: str) -> int:
+    """Return the index for the desired option if present, otherwise 0."""
+
+    try:
+        return options.index(desired_option)
+    except ValueError:
+        return 0
+
 # Paleta de colores fija para cada macro sector
 MACRO_COLOR_MAP = {
     "Social": "#001524",
@@ -326,15 +335,38 @@ def render():
         country_list = sorted(
             df_f["recipientcountry_codename"].dropna().unique()
         )
+        sector_default_idx = get_default_index(sector_list, "Infraestructura")
+        country_a_default_idx = get_default_index(country_list, "Argentina")
+        country_b_default_idx = get_default_index(country_list, "Brazil")
         col1, col2 = st.columns(2)
         with col1:
-            sector_a = st.selectbox("Macro sector A", sector_list, key="sector_a")
+            sector_a = st.selectbox(
+                "Macro sector A",
+                sector_list,
+                index=sector_default_idx,
+                key="sector_a",
+            )
             source_a = st.selectbox("MDB A", source_list, key="source_a")
-            country_a = st.selectbox("País A", country_list, key="country_a")
+            country_a = st.selectbox(
+                "País A",
+                country_list,
+                index=country_a_default_idx,
+                key="country_a",
+            )
         with col2:
-            sector_b = st.selectbox("Macro sector B", sector_list, key="sector_b")
+            sector_b = st.selectbox(
+                "Macro sector B",
+                sector_list,
+                index=sector_default_idx,
+                key="sector_b",
+            )
             source_b = st.selectbox("MDB B", source_list, key="source_b")
-            country_b = st.selectbox("País B", country_list, key="country_b")
+            country_b = st.selectbox(
+                "País B",
+                country_list,
+                index=country_b_default_idx,
+                key="country_b",
+            )
         df_a = df_f[
             (df_f["macro_sector"] == sector_a)
             & (df_f["source"] == source_a)
