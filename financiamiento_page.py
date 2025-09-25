@@ -4,6 +4,8 @@ import plotly.express as px
 import plotly.graph_objects as go
 from itertools import cycle
 
+from date_utils import parse_transaction_dates
+
 COLOR_MAP = {
     "FONPLATA": "#c1121f",
     "IADB": "#003566",
@@ -26,7 +28,9 @@ def build_color_map(sources):
 @st.cache_data
 def load_financiamiento() -> pd.DataFrame:
     df = pd.read_parquet("BDDGLOBALMERGED_ACTUALIZADO.parquet")
-    df["transactiondate_isodate"] = pd.to_datetime(df["transactiondate_isodate"])
+    df["transactiondate_isodate"] = parse_transaction_dates(
+        df["transactiondate_isodate"]
+    )
     return df
 
 
