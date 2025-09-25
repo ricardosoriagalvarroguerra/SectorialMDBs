@@ -437,22 +437,26 @@ def render():
             sector_a_pct = st.selectbox(
                 "Macro sector A (participación)",
                 sector_list,
+                index=sector_default_idx,
                 key="sector_a_pct",
             )
             country_a_pct = st.selectbox(
                 "País A (participación)",
                 country_list,
+                index=country_a_default_idx,
                 key="country_a_pct",
             )
         with dist_sel_cols[1]:
             sector_b_pct = st.selectbox(
                 "Macro sector B (participación)",
                 sector_list,
+                index=sector_default_idx,
                 key="sector_b_pct",
             )
             country_b_pct = st.selectbox(
                 "País B (participación)",
                 country_list,
+                index=country_b_default_idx,
                 key="country_b_pct",
             )
 
