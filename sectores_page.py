@@ -6,6 +6,8 @@ from plotly.subplots import make_subplots
 from pandas.api.types import is_string_dtype
 from io import BytesIO
 
+from date_utils import parse_transaction_dates
+
 # Utilidad para manejar multiselect con opción "Seleccionar todo"
 def handle_multiselect_behavior(selected_options, all_options, select_all_text):
     if not selected_options or select_all_text in selected_options:
@@ -58,11 +60,13 @@ def get_mdb_color_map(sources: list[str]) -> dict[str, str]:
 @st.cache_data
 def load_sectores() -> pd.DataFrame:
     df = pd.read_parquet("BDDGLOBALMERGED_ACTUALIZADO.parquet")
-    df["transactiondate_isodate"] = pd.to_datetime(df["transactiondate_isodate"])
+    df["transactiondate_isodate"] = parse_transaction_dates(
+        df["transactiondate_isodate"]
+    )
     if is_string_dtype(df["sector_code"]):
         df["sector_code"] = pd.to_numeric(df["sector_code"], errors="coerce")
     df["sector_code"] = df["sector_code"].astype("Int64")
-    df["year"] = df["transactiondate_isodate"].dt.year
+    df["year"] = df["transactiondate_isodate"].dt.year.astype("Int64")
     df["month"] = df["transactiondate_isodate"].dt.to_period("M").astype(str)
     return df
 
