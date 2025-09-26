@@ -465,20 +465,15 @@ def render():
                 .reset_index()
                 .sort_values(["source", "year"])
             )
-            dist_df["cumulative_value"] = (
-                dist_df.groupby("source")["value_usd"].cumsum()
-            )
-            dist_df["total_cumulative"] = dist_df.groupby("year")[
-                "cumulative_value"
+            dist_df["total_year_value"] = dist_df.groupby("year")[
+                "value_usd"
             ].transform("sum")
-            dist_df = dist_df[dist_df["total_cumulative"] > 0]
+            dist_df = dist_df[dist_df["total_year_value"] > 0]
             if dist_df.empty:
                 dist_results.append((label, macro_sel, country_sel, subset, None))
                 continue
 
-            dist_df["share"] = dist_df["cumulative_value"] / dist_df[
-                "total_cumulative"
-            ]
+            dist_df["share"] = dist_df["value_usd"] / dist_df["total_year_value"]
             dist_results.append((label, macro_sel, country_sel, subset, dist_df))
             for source in all_sources:
                 if source not in combined_sources:
@@ -521,12 +516,12 @@ def render():
                         y=source_df["share"],
                         name=source,
                         marker_color=color_map.get(source),
-                        customdata=source_df[["share", "cumulative_value"]],
+                        customdata=source_df[["share", "value_usd"]],
                         hovertemplate=(
                             "<b>Año:</b> %{x}<br>"
                             "<b>MDB:</b> %{fullData.name}<br>"
-                            "<b>Participación acumulada:</b> %{customdata[0]:.1%}<br>"
-                            "<b>Monto acumulado:</b> %{customdata[1]:,.2f} millones"
+                            "<b>Participación anual:</b> %{customdata[0]:.1%}<br>"
+                            "<b>Monto anual:</b> %{customdata[1]:,.2f} millones"
                             "<extra></extra>"
                         ),
                         legendgroup=source,
@@ -536,7 +531,7 @@ def render():
                     col=idx,
                 )
 
-            fig_pct.update_xaxes(title_text="Año acumulado", row=1, col=idx)
+            fig_pct.update_xaxes(title_text="Año", row=1, col=idx)
 
         fig_pct.update_yaxes(
             range=[0, 1], tickformat=".0%", title_text="Participación (%)", row=1, col=1
