@@ -6,6 +6,26 @@ import plotly.express as px
 from sectores_page import render as render_sectores
 from financiamiento_page import render as render_financiamiento
 
+# Paleta unificada para los multilaterales según lineamientos IDS.
+MULTILATERAL_COLOR_MAP = {
+    "BIS": "#fff15c",
+    "BCIE": "#7cc6fe",
+    "CAF": "#f4a259",
+    "EIB": "#f1d8a7",
+    "IDB": "#0b2545",
+    "IFAD": "#2d6a4f",
+    "IIB": "#5ca06a",
+    "IMF": "#2660a4",
+    "OPEC": "#386641",
+    "FONPLATA": "#af1d1d",
+    "World": "#6b6b6b",
+    "WB-IBRD": "#c0c5ce",
+    "WB-IDA": "#7ba6de",
+    "WB-MIGA": "#1f78d1",
+    "NDB": "#5e2b97",
+    "IFC": "#7f3f98",
+}
+
 # Diccionario de regiones
 regiones_dict = {
     "Caribe": [
@@ -275,28 +295,12 @@ elif pagina == 'Multilaterales':
         st.subheader(f'Gráficos para {pais}')
         st.markdown('**Serie temporal de deuda por Multilateral (Stacked Bar)**')
         
-        # Definir colores consistentes para multilaterales
-        multilateral_colors = {
-            'CAF': '#38b000',
-            'FONPLATA': '#c1121f',
-            'IDB': '#0077b6',
-            'WB-IBRD': '#023047',
-            'BIS': '#fdf0d5',
-            'WB-IDA': '#ffc300',
-            'IMF': '#e36414',
-            'EIB': '#e5e5e5',
-            'IIB': '#9d4edd',
-            'OPEC': '#ff6b35',
-            'IFAD': '#76c893',
-            'WB-MIGA': '#ffbb78'
-        }
-        
         fig1 = px.bar(
             df_pais_agg,
             x='Time',
             y=pais,
             color='Multilateral',
-            color_discrete_map=multilateral_colors,
+            color_discrete_map=MULTILATERAL_COLOR_MAP,
             labels={pais: pais, 'Time': 'Año', 'Multilateral': 'Multilateral'},
             title='USD',
             height=400
@@ -328,7 +332,7 @@ elif pagina == 'Multilaterales':
             x='Time',
             y='proporcion',
             color='Multilateral',
-            color_discrete_map=multilateral_colors,
+            color_discrete_map=MULTILATERAL_COLOR_MAP,
             labels={'proporcion': 'Proporción', 'Time': 'Año', 'Multilateral': 'Multilateral'},
             title='%',
             height=400
@@ -476,22 +480,6 @@ elif pagina == 'Comprometido':
         year_range = st.sidebar.slider('Rango de años', min_year, max_year, (min_year, max_year), key='comprometido_anos')
         df_comprometido = df_comprometido[(df_comprometido['Time'] >= year_range[0]) & (df_comprometido['Time'] <= year_range[1])]
     
-    # Definir colores consistentes para multilaterales (igual que en la página de Multilaterales)
-    multilateral_colors = {
-        'CAF': '#38b000',
-        'FONPLATA': '#c1121f',
-        'IDB': '#0077b6',
-        'WB-IBRD': '#023047',
-        'BIS': '#fdf0d5',
-        'WB-IDA': '#ffc300',
-        'IMF': '#e36414',
-        'EIB': '#e5e5e5',
-        'IIB': '#9d4edd',
-        'OPEC': '#ff6b35',
-        'IFAD': '#76c893',
-        'WB-MIGA': '#ffbb78'
-    }
-    
     # Definir países
     paises = ['Argentina [ARG]', 'Bolivia [BOL]', 'Brazil [BRA]', 'Paraguay [PRY]']
     
@@ -517,7 +505,7 @@ elif pagina == 'Comprometido':
                         x='Time',
                         y='Argentina [ARG]',
                         color='Multilateral',
-                        color_discrete_map=multilateral_colors,
+                        color_discrete_map=MULTILATERAL_COLOR_MAP,
                         title='USD',
                         height=300
                     )
@@ -551,7 +539,7 @@ elif pagina == 'Comprometido':
                         x='Time',
                         y='Bolivia [BOL]',
                         color='Multilateral',
-                        color_discrete_map=multilateral_colors,
+                        color_discrete_map=MULTILATERAL_COLOR_MAP,
                         title='USD',
                         height=300
                     )
@@ -588,7 +576,7 @@ elif pagina == 'Comprometido':
                         x='Time',
                         y='Brazil [BRA]',
                         color='Multilateral',
-                        color_discrete_map=multilateral_colors,
+                        color_discrete_map=MULTILATERAL_COLOR_MAP,
                         title='USD',
                         height=300
                     )
@@ -622,7 +610,7 @@ elif pagina == 'Comprometido':
                         x='Time',
                         y='Paraguay [PRY]',
                         color='Multilateral',
-                        color_discrete_map=multilateral_colors,
+                        color_discrete_map=MULTILATERAL_COLOR_MAP,
                         title='USD',
                         height=300
                     )
