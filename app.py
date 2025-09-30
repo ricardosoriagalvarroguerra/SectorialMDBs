@@ -223,28 +223,6 @@ if pagina == 'Deuda externa':
                 sc3_color_map[cat] = fallback_palette[fallback_index]
                 fallback_index += 1
 
-        # Vista previa de la paleta personalizada
-        custom_preview = [(cat, SC3_COLOR_OVERRIDES[cat]) for cat in [
-            "Bilateral",
-            "Multilateral",
-            "PPG debt: bonds",
-            "Other private creditors",
-            "PPG debt commercial banks",
-            "International Monetary Fund (IMF)",
-        ] if cat in sc3_categories]
-        if custom_preview:
-            st.markdown('**Vista previa de colores personalizados**')
-            preview_cols = st.columns(len(custom_preview))
-            for col, (cat, color) in zip(preview_cols, custom_preview):
-                text_color = get_contrasting_text_color(color)
-                col.markdown(
-                    f"""
-                    <div style='background-color:{color}; color:{text_color}; padding:12px; border-radius:6px; text-align:center; font-weight:600;'>
-                        {cat}
-                    </div>
-                    """,
-                    unsafe_allow_html=True,
-                )
         st.markdown('**Serie temporal de deuda por SC3 (Stacked Bar)**')
         fig1 = px.bar(
             df_pais_agg,
