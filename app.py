@@ -26,6 +26,15 @@ MULTILATERAL_COLOR_MAP = {
     "IFC": "#7f3f98",
 }
 
+SC3_COLOR_OVERRIDES = {
+    "Bilateral": "#5E7FD7",
+    "Multilateral": "#4CAF50",
+    "PPG debt: bonds": "#2F3847",
+    "Other private creditors": "#7655A6",
+    "PPG debt commercial banks": "#D6B23F",
+    "International Monetary Fund (IMF)": "#8B2F2F",
+}
+
 # Diccionario de regiones
 regiones_dict = {
     "Caribe": [
@@ -70,6 +79,16 @@ def handle_multiselect_behavior(selected_options, all_options, select_all_text="
     
     # Si no hay opciones individuales, retornar todas las opciones
     return all_options
+
+
+def get_contrasting_text_color(hex_color: str) -> str:
+    """Return black or white depending on the perceived brightness of the color."""
+    hex_color = hex_color.lstrip("#")
+    if len(hex_color) != 6:
+        return "#FFFFFF"
+    r, g, b = (int(hex_color[i : i + 2], 16) for i in (0, 2, 4))
+    brightness = (r * 299 + g * 587 + b * 114) / 1000
+    return "#000000" if brightness > 186 else "#FFFFFF"
 
 # Cargar datos
 @st.cache_data
@@ -182,20 +201,50 @@ if pagina == 'Deuda externa':
             '#6A80C4', '#A7B6E2', '#002B8F', '#DC493A', '#FFFFFF',
             '#4392F1', '#E2C3CE', '#715676', '#243156', '#82AFED'
         ]
-        if len(sc3_categories) > len(base_palette):
-            extra_palettes = (
-                px.colors.qualitative.Plotly
-                + px.colors.qualitative.Safe
-                + px.colors.qualitative.Set3
-                + px.colors.qualitative.Pastel
-                + px.colors.qualitative.D3
-            )
-            for color in extra_palettes:
-                if color not in base_palette:
-                    base_palette.append(color)
-                if len(base_palette) >= len(sc3_categories):
-                    break
-        sc3_color_map = {cat: base_palette[i] for i, cat in enumerate(sc3_categories)}
+        fallback_palette = [color for color in base_palette if color not in SC3_COLOR_OVERRIDES.values()]
+        extra_palettes = (
+            px.colors.qualitative.Plotly
+            + px.colors.qualitative.Safe
+            + px.colors.qualitative.Set3
+            + px.colors.qualitative.Pastel
+            + px.colors.qualitative.D3
+        )
+        for color in extra_palettes:
+            if color not in fallback_palette and color not in SC3_COLOR_OVERRIDES.values():
+                fallback_palette.append(color)
+        sc3_color_map = {}
+        fallback_index = 0
+        for cat in sc3_categories:
+            if cat in SC3_COLOR_OVERRIDES:
+                sc3_color_map[cat] = SC3_COLOR_OVERRIDES[cat]
+            else:
+                if fallback_index >= len(fallback_palette):
+                    fallback_palette.append(px.colors.qualitative.Light24[fallback_index % len(px.colors.qualitative.Light24)])
+                sc3_color_map[cat] = fallback_palette[fallback_index]
+                fallback_index += 1
+
+        # Vista previa de la paleta personalizada
+        custom_preview = [(cat, SC3_COLOR_OVERRIDES[cat]) for cat in [
+            "Bilateral",
+            "Multilateral",
+            "PPG debt: bonds",
+            "Other private creditors",
+            "PPG debt commercial banks",
+            "International Monetary Fund (IMF)",
+        ] if cat in sc3_categories]
+        if custom_preview:
+            st.markdown('**Vista previa de colores personalizados**')
+            preview_cols = st.columns(len(custom_preview))
+            for col, (cat, color) in zip(preview_cols, custom_preview):
+                text_color = get_contrasting_text_color(color)
+                col.markdown(
+                    f"""
+                    <div style='background-color:{color}; color:{text_color}; padding:12px; border-radius:6px; text-align:center; font-weight:600;'>
+                        {cat}
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
         st.markdown('**Serie temporal de deuda por SC3 (Stacked Bar)**')
         fig1 = px.bar(
             df_pais_agg,
