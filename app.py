@@ -93,7 +93,11 @@ def get_contrasting_text_color(hex_color: str) -> str:
 # Cargar datos
 @st.cache_data
 def load_data():
-    return pd.read_parquet('IDS.parquet')
+    df_ids = pd.read_parquet('IDS.parquet')
+    if 'SC3' in df_ids.columns:
+        sc3_clean = df_ids['SC3'].astype(str).str.strip().str.lower()
+        df_ids = df_ids[~sc3_clean.eq('private')]
+    return df_ids
 
 df = load_data()
 
