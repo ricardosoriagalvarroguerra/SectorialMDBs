@@ -249,6 +249,7 @@ if pagina == 'Deuda externa':
         ]
         # Tomar el valor máximo por año y SC3 para evitar duplicados (mantiene el valor más significativo)
         df_pais_agg = df_pais.groupby(['Time', 'SC3'])[pais].max().reset_index()
+        df_pais_agg["valor_millones"] = df_pais_agg[pais] / 1_000_000
         # Paleta de colores específica para categorías de deuda externa
         sc3_categories = df_pais_agg['SC3'].unique()
         base_palette = [
@@ -281,18 +282,17 @@ if pagina == 'Deuda externa':
         fig1 = px.bar(
             df_pais_agg,
             x='Time',
-            y=pais,
+            y='valor_millones',
             color='SC3',
             color_discrete_map=sc3_color_map,
-            labels={pais: pais, 'Time': 'Año', 'SC3': 'SC3'},
-            title='USD',
+            labels={'valor_millones': f'{pais} (millones USD)', 'Time': 'Año', 'SC3': 'SC3'},
+            title='Millones USD',
             height=400
         )
         fig1.update_xaxes(showgrid=False)
-        fig1.update_yaxes(showgrid=False, tickformat=',.0f', title_text=f'{pais} (millones USD)')
-        fig1.update_yaxes(tickformat='.2s')
+        fig1.update_yaxes(showgrid=False, tickformat=',.1f', title_text=f'{pais} (millones USD)')
         fig1.update_traces(
-            hovertemplate="<b>Año:</b> %{x}<br><b>SC3:</b> %{fullData.name}<br><b>Valor:</b> %{y:.2s} USD<extra></extra>"
+            hovertemplate="<b>Año:</b> %{x}<br><b>SC3:</b> %{fullData.name}<br><b>Valor:</b> %{y:,.2f} millones USD<extra></extra>"
         )
         fig1.update_layout(
             legend=dict(
@@ -303,7 +303,7 @@ if pagina == 'Deuda externa':
                 x=0.5,
                 title_text=''  # Quitar el título de la leyenda
             ),
-            title={'text': 'USD', 'x': 0.5, 'xanchor': 'center'}
+            title={'text': 'Millones USD', 'x': 0.5, 'xanchor': 'center'}
         )
         st.plotly_chart(fig1, use_container_width=True)
         # Gráfico 100% stacked bar
@@ -373,6 +373,7 @@ elif pagina == 'Multilaterales':
     if df_pais is not None and not df_pais.empty:
         # Tomar el valor máximo por año y multilateral para evitar duplicados (mantiene el valor más significativo)
         df_pais_agg = df_pais.groupby(['Time', 'Multilateral'])[pais].max().reset_index()
+        df_pais_agg["valor_millones"] = df_pais_agg[pais] / 1_000_000
         
         import plotly.express as px
         st.subheader(f'Gráficos para {pais}')
@@ -381,18 +382,17 @@ elif pagina == 'Multilaterales':
         fig1 = px.bar(
             df_pais_agg,
             x='Time',
-            y=pais,
+            y='valor_millones',
             color='Multilateral',
             color_discrete_map=MULTILATERAL_COLOR_MAP,
-            labels={pais: pais, 'Time': 'Año', 'Multilateral': 'Multilateral'},
-            title='USD',
+            labels={'valor_millones': f'{pais} (millones USD)', 'Time': 'Año', 'Multilateral': 'Multilateral'},
+            title='Millones USD',
             height=400
         )
         fig1.update_xaxes(showgrid=False)
-        fig1.update_yaxes(showgrid=False, tickformat=',.0f', title_text=f'{pais} (millones USD)')
-        fig1.update_yaxes(tickformat='.2s')
+        fig1.update_yaxes(showgrid=False, tickformat=',.1f', title_text=f'{pais} (millones USD)')
         fig1.update_traces(
-            hovertemplate="<b>Año:</b> %{x}<br><b>Multilateral:</b> %{fullData.name}<br><b>Valor:</b> %{y:.2s} USD<extra></extra>"
+            hovertemplate="<b>Año:</b> %{x}<br><b>Multilateral:</b> %{fullData.name}<br><b>Valor:</b> %{y:,.2f} millones USD<extra></extra>"
         )
         fig1.update_layout(
             legend=dict(
@@ -403,7 +403,7 @@ elif pagina == 'Multilaterales':
                 x=0.5,
                 title_text=''
             ),
-            title={'text': 'USD', 'x': 0.5, 'xanchor': 'center'}
+            title={'text': 'Millones USD', 'x': 0.5, 'xanchor': 'center'}
         )
         st.plotly_chart(fig1, use_container_width=True)
         
@@ -581,24 +581,25 @@ elif pagina == 'Comprometido':
             if not df_arg.empty:
                 # Tomar el valor máximo por año y multilateral para evitar duplicados (mantiene el valor más significativo)
                 df_arg_agg = df_arg.groupby(['Time', 'Multilateral'])['Argentina [ARG]'].max().reset_index()
+                df_arg_agg["valor_millones"] = df_arg_agg["Argentina [ARG]"] / 1_000_000
                 with col1:
                     st.markdown("<h3 style='text-align: center;'>Argentina</h3>", unsafe_allow_html=True)
                     fig_arg = px.bar(
                         df_arg_agg,
                         x='Time',
-                        y='Argentina [ARG]',
+                        y='valor_millones',
                         color='Multilateral',
                         color_discrete_map=MULTILATERAL_COLOR_MAP,
-                        title='USD',
+                        title='Millones USD',
                         height=300
                     )
                     fig_arg.update_xaxes(showgrid=False, tickangle=45)
-                    fig_arg.update_yaxes(showgrid=False, tickformat='.2s', title_text='Argentina [ARG] (millones USD)')
+                    fig_arg.update_yaxes(showgrid=False, tickformat=',.1f', title_text='Argentina [ARG] (millones USD)')
                     fig_arg.update_traces(
-                        hovertemplate="<b>Año:</b> %{x}<br><b>Multilateral:</b> %{fullData.name}<br><b>Valor:</b> %{y:.2s} USD<extra></extra>"
+                        hovertemplate="<b>Año:</b> %{x}<br><b>Multilateral:</b> %{fullData.name}<br><b>Valor:</b> %{y:,.2f} millones USD<extra></extra>"
                     )
                     fig_arg.update_layout(
-                        title={'text': 'USD', 'x': 0.5, 'xanchor': 'center'},
+                        title={'text': 'Millones USD', 'x': 0.5, 'xanchor': 'center'},
                         showlegend=False
                     )
                     st.plotly_chart(fig_arg, use_container_width=True)
@@ -615,24 +616,25 @@ elif pagina == 'Comprometido':
             if not df_bol.empty:
                 # Tomar el valor máximo por año y multilateral para evitar duplicados (mantiene el valor más significativo)
                 df_bol_agg = df_bol.groupby(['Time', 'Multilateral'])['Bolivia [BOL]'].max().reset_index()
+                df_bol_agg["valor_millones"] = df_bol_agg["Bolivia [BOL]"] / 1_000_000
                 with col2:
                     st.markdown("<h3 style='text-align: center;'>Bolivia</h3>", unsafe_allow_html=True)
                     fig_bol = px.bar(
                         df_bol_agg,
                         x='Time',
-                        y='Bolivia [BOL]',
+                        y='valor_millones',
                         color='Multilateral',
                         color_discrete_map=MULTILATERAL_COLOR_MAP,
-                        title='USD',
+                        title='Millones USD',
                         height=300
                     )
                     fig_bol.update_xaxes(showgrid=False, tickangle=45)
-                    fig_bol.update_yaxes(showgrid=False, tickformat='.2s', title_text='Bolivia [BOL] (millones USD)')
+                    fig_bol.update_yaxes(showgrid=False, tickformat=',.1f', title_text='Bolivia [BOL] (millones USD)')
                     fig_bol.update_traces(
-                        hovertemplate="<b>Año:</b> %{x}<br><b>Multilateral:</b> %{fullData.name}<br><b>Valor:</b> %{y:.2s} USD<extra></extra>"
+                        hovertemplate="<b>Año:</b> %{x}<br><b>Multilateral:</b> %{fullData.name}<br><b>Valor:</b> %{y:,.2f} millones USD<extra></extra>"
                     )
                     fig_bol.update_layout(
-                        title={'text': 'USD', 'x': 0.5, 'xanchor': 'center'},
+                        title={'text': 'Millones USD', 'x': 0.5, 'xanchor': 'center'},
                         showlegend=False
                     )
                     st.plotly_chart(fig_bol, use_container_width=True)
@@ -652,24 +654,25 @@ elif pagina == 'Comprometido':
             if not df_bra.empty:
                 # Tomar el valor máximo por año y multilateral para evitar duplicados (mantiene el valor más significativo)
                 df_bra_agg = df_bra.groupby(['Time', 'Multilateral'])['Brazil [BRA]'].max().reset_index()
+                df_bra_agg["valor_millones"] = df_bra_agg["Brazil [BRA]"] / 1_000_000
                 with col3:
                     st.markdown("<h3 style='text-align: center;'>Brasil</h3>", unsafe_allow_html=True)
                     fig_bra = px.bar(
                         df_bra_agg,
                         x='Time',
-                        y='Brazil [BRA]',
+                        y='valor_millones',
                         color='Multilateral',
                         color_discrete_map=MULTILATERAL_COLOR_MAP,
-                        title='USD',
+                        title='Millones USD',
                         height=300
                     )
                     fig_bra.update_xaxes(showgrid=False, tickangle=45)
-                    fig_bra.update_yaxes(showgrid=False, tickformat='.2s', title_text='Brazil [BRA] (millones USD)')
+                    fig_bra.update_yaxes(showgrid=False, tickformat=',.1f', title_text='Brazil [BRA] (millones USD)')
                     fig_bra.update_traces(
-                        hovertemplate="<b>Año:</b> %{x}<br><b>Multilateral:</b> %{fullData.name}<br><b>Valor:</b> %{y:.2s} USD<extra></extra>"
+                        hovertemplate="<b>Año:</b> %{x}<br><b>Multilateral:</b> %{fullData.name}<br><b>Valor:</b> %{y:,.2f} millones USD<extra></extra>"
                     )
                     fig_bra.update_layout(
-                        title={'text': 'USD', 'x': 0.5, 'xanchor': 'center'},
+                        title={'text': 'Millones USD', 'x': 0.5, 'xanchor': 'center'},
                         showlegend=False
                     )
                     st.plotly_chart(fig_bra, use_container_width=True)
@@ -686,24 +689,25 @@ elif pagina == 'Comprometido':
             if not df_pry.empty:
                 # Tomar el valor máximo por año y multilateral para evitar duplicados (mantiene el valor más significativo)
                 df_pry_agg = df_pry.groupby(['Time', 'Multilateral'])['Paraguay [PRY]'].max().reset_index()
+                df_pry_agg["valor_millones"] = df_pry_agg["Paraguay [PRY]"] / 1_000_000
                 with col4:
                     st.markdown("<h3 style='text-align: center;'>Paraguay</h3>", unsafe_allow_html=True)
                     fig_pry = px.bar(
                         df_pry_agg,
                         x='Time',
-                        y='Paraguay [PRY]',
+                        y='valor_millones',
                         color='Multilateral',
                         color_discrete_map=MULTILATERAL_COLOR_MAP,
-                        title='USD',
+                        title='Millones USD',
                         height=300
                     )
                     fig_pry.update_xaxes(showgrid=False, tickangle=45)
-                    fig_pry.update_yaxes(showgrid=False, tickformat='.2s', title_text='Paraguay [PRY] (millones USD)')
+                    fig_pry.update_yaxes(showgrid=False, tickformat=',.1f', title_text='Paraguay [PRY] (millones USD)')
                     fig_pry.update_traces(
-                        hovertemplate="<b>Año:</b> %{x}<br><b>Multilateral:</b> %{fullData.name}<br><b>Valor:</b> %{y:.2s} USD<extra></extra>"
+                        hovertemplate="<b>Año:</b> %{x}<br><b>Multilateral:</b> %{fullData.name}<br><b>Valor:</b> %{y:,.2f} millones USD<extra></extra>"
                     )
                     fig_pry.update_layout(
-                        title={'text': 'USD', 'x': 0.5, 'xanchor': 'center'},
+                        title={'text': 'Millones USD', 'x': 0.5, 'xanchor': 'center'},
                         showlegend=False
                     )
                     st.plotly_chart(fig_pry, use_container_width=True)
