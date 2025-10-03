@@ -16,7 +16,6 @@ MULTILATERAL_COLOR_MAP = {
     "IDB": "#0b2545",
     "IFAD": "#2d6a4f",
     "IIB": "#5ca06a",
-    "IMF": "#2660a4",
     "OPEC": "#386641",
     "FONPLATA": "#af1d1d",
     "World": "#6b6b6b",
@@ -364,7 +363,9 @@ elif pagina == 'Multilaterales':
     # El dataframe filtrado por país se usará en los gráficos
     if pais in df_filtrado.columns:
         df_pais = df_filtrado[["Multilateral", "SC3", "Time", pais]].dropna()
-        df_pais = df_pais[~df_pais["Multilateral"].str.strip().str.lower().eq("world")]
+        df_pais = df_pais[
+            ~df_pais["Multilateral"].str.strip().str.lower().isin({"world", "imf"})
+        ]
     else:
         df_pais = None
     # st.dataframe(df_filtrado)  # Opcional: mostrar la tabla filtrada
