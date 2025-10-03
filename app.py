@@ -197,6 +197,10 @@ if pagina == 'Deuda externa':
     if pais in df_filtrado.columns:
         df_pais = df_filtrado[["SC3", "Time", pais]].dropna()
         df_pais = df_pais[~df_pais["SC3"].str.contains("All creditors", case=False, na=False)]
+        excluded_sc3 = {"official", "bilateral concessional", "multilateral concessional"}
+        df_pais = df_pais[
+            ~df_pais["SC3"].str.strip().str.lower().isin(excluded_sc3)
+        ]
         # Tomar el valor máximo por año y SC3 para evitar duplicados (mantiene el valor más significativo)
         df_pais_agg = df_pais.groupby(['Time', 'SC3'])[pais].max().reset_index()
         # Paleta de colores específica para categorías de deuda externa
