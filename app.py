@@ -3,6 +3,7 @@ import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import plotly.express as px
+from typing import Optional
 from sectores_page import render as render_sectores
 from financiamiento_page import render as render_financiamiento
 
@@ -91,6 +92,22 @@ def get_contrasting_text_color(hex_color: str) -> str:
     return "#000000" if brightness > 186 else "#FFFFFF"
 
 # Cargar datos
+COUNTRY_COLUMN_EXCLUSIONS = ('PIB', '%')
+SPECIAL_COUNTRY_KEYWORDS = ("Costa Rica", "Dominican Republic")
+
+
+def get_country_columns(dataframe: Optional[pd.DataFrame]) -> list[str]:
+    if dataframe is None:
+        return []
+    return [
+        col
+        for col in dataframe.columns
+        if '[' in col
+        and ']' in col
+        and not any(col.startswith(prefix) for prefix in COUNTRY_COLUMN_EXCLUSIONS)
+    ]
+
+
 @st.cache_data
 def load_data():
     df_ids = pd.read_parquet('IDS.parquet')
@@ -99,7 +116,34 @@ def load_data():
         df_ids = df_ids[~sc3_clean.eq('private')]
     return df_ids
 
+
+@st.cache_data
+def load_special_country_data():
+    try:
+        df_special = pd.read_parquet('IDS_CRI_DR.parquet')
+    except FileNotFoundError:
+        return None
+    if 'SC3' in df_special.columns:
+        sc3_clean = df_special['SC3'].astype(str).str.strip().str.lower()
+        df_special = df_special[~sc3_clean.eq('private')]
+    return df_special
+
+
 df = load_data()
+df_special = load_special_country_data()
+base_country_columns = get_country_columns(df)
+special_country_columns = []
+if df_special is not None:
+    special_country_columns = [
+        col
+        for col in get_country_columns(df_special)
+        if any(keyword in col for keyword in SPECIAL_COUNTRY_KEYWORDS)
+    ]
+all_country_columns = base_country_columns.copy()
+for col in special_country_columns:
+    if col not in all_country_columns:
+        all_country_columns.append(col)
+special_country_set = set(special_country_columns)
 
 # Sidebar para navegación
 st.sidebar.title('Navegación')
@@ -150,8 +194,10 @@ df_iati = load_iati_data()
 if pagina == 'Deuda externa':
     st.title('Deuda externa')
     # Filtros en la sidebar
-    paises = [col for col in df.columns if '[' in col and ']' in col and not col.startswith('PIB') and not col.startswith('%')]
+    paises = all_country_columns
     pais = st.sidebar.selectbox('Selecciona país', paises)
+    use_special_data = df_special is not None and pais in special_country_set
+    df_source = df_special if use_special_data else df
     # Filtro adicional para SC4
     sc4_allowed = [
         "General Government",
@@ -160,7 +206,7 @@ if pagina == 'Deuda externa':
         "Public Sector",
     ]
     sc4_options = [
-        opt for opt in sc4_allowed if 'SC4' in df.columns and opt in df['SC4'].dropna().unique()
+        opt for opt in sc4_allowed if 'SC4' in df_source.columns and opt in df_source['SC4'].dropna().unique()
     ]
     sc4 = st.sidebar.selectbox('Selecciona SC4', sc4_options) if sc4_options else None
     # Filtro adicional para SC2
@@ -174,10 +220,10 @@ if pagina == 'Deuda externa':
         "Total debt service (AMT + INT)",
     ]
     sc2_options = [
-        opt for opt in sc2_allowed if 'SC2' in df.columns and opt in df['SC2'].dropna().unique()
+        opt for opt in sc2_allowed if 'SC2' in df_source.columns and opt in df_source['SC2'].dropna().unique()
     ]
     sc2 = st.sidebar.selectbox('Selecciona SC2', sc2_options) if sc2_options else None
-    df_filtrado = df.copy()
+    df_filtrado = df_source.copy()
     if sc4 is not None:
         df_filtrado = df_filtrado[df_filtrado['SC4'] == sc4]
     if sc2 is not None:
@@ -282,8 +328,10 @@ if pagina == 'Deuda externa':
 elif pagina == 'Multilaterales':
     st.title('Multilaterales')
     # Filtros país y SC2
-    paises = [col for col in df.columns if '[' in col and ']' in col and not col.startswith('PIB') and not col.startswith('%')]
+    paises = all_country_columns
     pais = st.sidebar.selectbox('Selecciona país', paises)
+    use_special_data = df_special is not None and pais in special_country_set
+    df_source = df_special if use_special_data else df
     allowed_sc2 = [
         'Debt outstanding and disbursed',
         'Disbursements',
@@ -293,13 +341,13 @@ elif pagina == 'Multilaterales':
         'principal repayments',
         'Total debt service (AMT + INT)'
     ]
-    if 'SC2' in df.columns:
-        sc2_options = [opt for opt in allowed_sc2 if opt in df['SC2'].dropna().unique()]
+    if 'SC2' in df_source.columns:
+        sc2_options = [opt for opt in allowed_sc2 if opt in df_source['SC2'].dropna().unique()]
     else:
         sc2_options = []
     sc2 = st.sidebar.selectbox('Selecciona SC2', sc2_options) if sc2_options else None
     # Filtrado
-    df_filtrado = df.copy()
+    df_filtrado = df_source.copy()
     if sc2 is not None:
         df_filtrado = df_filtrado[df_filtrado['SC2'] == sc2]
     df_filtrado = df_filtrado[df_filtrado['Time'] <= 2023]
