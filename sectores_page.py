@@ -8,6 +8,7 @@ from io import BytesIO
 
 from color_utils import get_mdb_color_map, order_sources
 from date_utils import parse_transaction_dates
+from download_utils import build_csv_filename, download_csv_button
 
 # Utilidad para manejar multiselect con opción "Seleccionar todo"
 def handle_multiselect_behavior(selected_options, all_options, select_all_text):
@@ -218,6 +219,16 @@ def render():
             )
             fig_bar.update_layout(yaxis={"categoryorder": "array", "categoryarray": macro_order})
             st.plotly_chart(fig_bar, use_container_width=True)
+            download_csv_button(
+                df_top.rename(
+                    columns={
+                        "value_usd": "valor_millones_usd",
+                        "ops": "numero_actividades",
+                        "ticket": "ticket_promedio_millones_usd",
+                    }
+                ),
+                build_csv_filename("sectores_panorama", "macro_totales"),
+            )
         with col_donut:
             df_donut = df_macro.reset_index()
             fig_donut = px.pie(
@@ -230,6 +241,10 @@ def render():
             )
             fig_donut.update_traces(hovertemplate="%{label}: %{value:,.2f} millones")
             st.plotly_chart(fig_donut, use_container_width=True)
+            download_csv_button(
+                df_donut.rename(columns={"value_usd": "valor_millones_usd"}),
+                build_csv_filename("sectores_panorama", "macro_participacion"),
+            )
 
         df_year_macro = (
             df_f[df_f["macro_sector"].isin(macro_order)]
@@ -275,6 +290,10 @@ def render():
             )
             fig_stack.update_layout(showlegend=False)
             st.plotly_chart(fig_stack, use_container_width=True)
+            download_csv_button(
+                df_year_macro.rename(columns={"value_usd": "valor_millones_usd"}),
+                build_csv_filename("sectores_panorama", "macro_series"),
+            )
 
         with col_percent:
             df_percent = df_year_macro.copy()
@@ -298,6 +317,15 @@ def render():
             fig_percent.update_yaxes(range=[0, 100])
             fig_percent.update_layout(showlegend=False)
             st.plotly_chart(fig_percent, use_container_width=True)
+            download_csv_button(
+                df_percent.rename(
+                    columns={
+                        "value_usd": "valor_millones_usd",
+                        "percent": "participacion_porcentaje",
+                    }
+                ),
+                build_csv_filename("sectores_panorama", "macro_series_porcentaje"),
+            )
 
     elif subpage == "Comparador A vs B":
         sector_list = sorted(df_f["macro_sector"].dropna().unique())
@@ -378,6 +406,10 @@ def render():
         )
         fig_bar.update_xaxes(title="")
         st.plotly_chart(fig_bar, use_container_width=True)
+        download_csv_button(
+            comp_df.rename(columns={"value_usd": "valor_millones_usd"}),
+            build_csv_filename("sectores_comparador", "series"),
+        )
         col_a, col_b = st.columns(2)
         for col, (sector, source, country) in zip(
             (col_a, col_b),
@@ -549,6 +581,25 @@ def render():
             margin=dict(t=70, b=120),
         )
         st.plotly_chart(fig_pct, use_container_width=True)
+        dist_exports = []
+        for label, macro_sel, country_sel, subset, dist_df in dist_results:
+            if dist_df is None or dist_df.empty:
+                continue
+            export_df = dist_df.copy()
+            export_df["comparador"] = label
+            export_df["macro_sector"] = macro_sel
+            export_df["pais"] = country_sel
+            dist_exports.append(export_df)
+        if dist_exports:
+            download_csv_button(
+                pd.concat(dist_exports).rename(
+                    columns={
+                        "value_usd": "valor_millones_usd",
+                        "share": "participacion",  # share is 0-1
+                    }
+                ),
+                build_csv_filename("sectores_comparador", "participacion"),
+            )
 
         metric_cols = st.columns(len(dist_results))
         for col, (label, macro_sel, country_sel, subset, dist_df) in zip(
@@ -605,6 +656,10 @@ def render():
             )
             fig_country.update_layout(yaxis={"categoryorder": "total ascending"})
             st.plotly_chart(fig_country, use_container_width=True)
+            download_csv_button(
+                top_countries.rename(columns={"value_usd": "valor_millones_usd"}),
+                build_csv_filename("sectores_ficha", sector_sel, "paises"),
+            )
         with col_source:
             source_order = order_sources(top_sources["source"].tolist())
             source_color_map = get_mdb_color_map(source_order)
@@ -618,6 +673,10 @@ def render():
                 color_discrete_map=source_color_map,
             )
             st.plotly_chart(fig_source, use_container_width=True)
+            download_csv_button(
+                top_sources.rename(columns={"value_usd": "valor_millones_usd"}),
+                build_csv_filename("sectores_ficha", sector_sel, "mdbs"),
+            )
 
         st.subheader("Detalle por país")
         focus_labels = ["Argentina", "Brasil", "Bolivia", "Paraguay", "Uruguay"]
@@ -687,6 +746,10 @@ def render():
         )
         fig_heat.update_yaxes(autorange="reversed")
         st.plotly_chart(fig_heat, use_container_width=True)
+        download_csv_button(
+            pivot.reset_index().rename(columns={"macro_sector": "macro_sector"}),
+            build_csv_filename("sectores_matrices", "macro_vs_pais"),
+        )
 
         pivot2 = (
             df_focus.pivot_table(
@@ -714,6 +777,10 @@ def render():
         )
         fig_heat2.update_yaxes(autorange="reversed")
         st.plotly_chart(fig_heat2, use_container_width=True)
+        download_csv_button(
+            pivot2.reset_index().rename(columns={"index": "macro_sector"}),
+            build_csv_filename("sectores_matrices", "macro_vs_ano"),
+        )
 
     elif subpage == "Intensidad y estructura":
         allowed_labels = ["Argentina", "Bolivia", "Brasil", "Paraguay", "Uruguay"]
@@ -787,6 +854,18 @@ def render():
         )
         fig_bubble.update_traces(marker=dict(size=12))
         st.plotly_chart(fig_bubble, use_container_width=True)
+        download_csv_button(
+            bubble_df.rename(
+                columns={
+                    "sum_usd": "total_millones_usd",
+                    "mean_usd": "ticket_promedio_millones_usd",
+                    "ops": "numero_actividades",
+                    "source": "mdb",
+                    "recipientcountry_codename": "pais",
+                }
+            ),
+            build_csv_filename("sectores_intensidad", "burbuja"),
+        )
 
         # El diagrama de Sankey no debe verse afectado por los filtros de
         # "MDBs" y "Países" seleccionados arriba, por lo que se construye a
@@ -942,6 +1021,17 @@ def render():
             )
             fig_sankey.update_layout(height=600, width=1000)
             st.plotly_chart(fig_sankey, use_container_width=True)
+            download_csv_button(
+                sankey_df.rename(
+                    columns={
+                        "source": "mdb",
+                        "macro_sector": "macro_sector",
+                        "recipientcountry_codename": "pais",
+                        "value_usd": "valor_millones_usd",
+                    }
+                ),
+                build_csv_filename("sectores_intensidad", "sankey"),
+            )
 
     elif subpage == "Tabla maestra":
         cols = [
