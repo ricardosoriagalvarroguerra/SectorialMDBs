@@ -5,6 +5,7 @@ import plotly.graph_objects as go
 
 from color_utils import get_mdb_color_map, order_sources
 from date_utils import parse_transaction_dates
+from download_utils import build_csv_filename, download_csv_button
 
 
 @st.cache_data
@@ -212,6 +213,18 @@ def render() -> None:
             )
 
             columns[idx % 2].plotly_chart(fig, use_container_width=True)
+            download_df = grouped[["transaction_year", "value_usd", "value_millions"]].rename(
+                columns={
+                    "transaction_year": "anio",
+                    "value_usd": "valor_usd",
+                    "value_millions": "valor_millones_usd",
+                }
+            )
+            download_csv_button(
+                download_df,
+                build_csv_filename("financiamiento_fuente", source, "evolucion"),
+                container=columns[idx % 2],
+            )
             if idx % 2 == 1 and idx < len(ordered_sources) - 1:
                 columns = st.columns(2)
 
@@ -289,6 +302,20 @@ def render() -> None:
             )
 
         st.plotly_chart(fig_total, use_container_width=True)
+        download_df = percentages[
+            ["transaction_year", "source", "value_usd", "value_millions", "percentage"]
+        ].rename(
+            columns={
+                "transaction_year": "anio",
+                "value_usd": "valor_usd",
+                "value_millions": "valor_millones_usd",
+                "percentage": "participacion_porcentaje",
+            }
+        )
+        download_csv_button(
+            download_df,
+            build_csv_filename("financiamiento_fuente", "participacion"),
+        )
         return
 
     if selected_view == "Intensidad y estructura":
@@ -387,6 +414,18 @@ def render() -> None:
             )
         )
         st.plotly_chart(fig_bubble, use_container_width=True)
+        download_csv_button(
+            bubble_df.rename(
+                columns={
+                    "source": "mdb",
+                    "recipientcountry_codename": "pais",
+                    "total_millions": "total_millones_usd",
+                    "ticket_millions": "ticket_promedio_millones_usd",
+                    "ops": "numero_actividades",
+                }
+            ),
+            build_csv_filename("financiamiento_intensidad", "burbuja"),
+        )
 
         st.subheader("Estructura del financiamiento por MDB y país")
 
@@ -528,3 +567,13 @@ def render() -> None:
         )
         fig_sankey.update_layout(height=500, width=1000)
         st.plotly_chart(fig_sankey, use_container_width=True)
+        download_csv_button(
+            sankey_df.rename(
+                columns={
+                    "source": "mdb",
+                    "recipientcountry_codename": "pais",
+                    "value_usd": "valor_millones_usd",
+                }
+            ),
+            build_csv_filename("financiamiento_intensidad", "sankey"),
+        )

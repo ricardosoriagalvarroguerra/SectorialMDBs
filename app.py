@@ -4,6 +4,8 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import plotly.express as px
 from typing import Optional
+
+from download_utils import build_csv_filename, download_csv_button
 from sectores_page import render as render_sectores
 from financiamiento_page import render as render_financiamiento
 
@@ -305,6 +307,13 @@ if pagina == 'Deuda externa':
             title={'text': 'Millones USD', 'x': 0.5, 'xanchor': 'center'}
         )
         st.plotly_chart(fig1, use_container_width=True)
+        fig1_data = df_pais_agg[["Time", "SC3", pais, "valor_millones"]].rename(
+            columns={"Time": "Anio", pais: pais, "valor_millones": "valor_millones_usd"}
+        )
+        download_csv_button(
+            fig1_data,
+            build_csv_filename("deuda_externa", pais, "sc3_millones"),
+        )
         # Gráfico 100% stacked bar
         total_por_anio = df_pais_agg.groupby('Time')[pais].transform('sum')
         df_pais_agg['proporcion'] = df_pais_agg[pais] / total_por_anio
@@ -325,6 +334,13 @@ if pagina == 'Deuda externa':
             hovertemplate="<b>Año:</b> %{x}<br><b>SC3:</b> %{fullData.name}<br><b>Porcentaje:</b> %{y:.1%}<extra></extra>"
         )
         st.plotly_chart(fig2, use_container_width=True)
+        fig2_data = df_pais_agg[["Time", "SC3", "proporcion"]].rename(
+            columns={"Time": "Anio", "proporcion": "participacion"}
+        )
+        download_csv_button(
+            fig2_data,
+            build_csv_filename("deuda_externa", pais, "sc3_participacion"),
+        )
     else:
         st.info(f'No se encontró la columna "{pais}" en la base de datos.')
 
@@ -407,7 +423,14 @@ elif pagina == 'Multilaterales':
             title={'text': 'Millones USD', 'x': 0.5, 'xanchor': 'center'}
         )
         st.plotly_chart(fig1, use_container_width=True)
-        
+        fig1_data = df_pais_agg[["Time", "Multilateral", pais, "valor_millones"]].rename(
+            columns={"Time": "Anio", pais: pais, "valor_millones": "valor_millones_usd"}
+        )
+        download_csv_button(
+            fig1_data,
+            build_csv_filename("multilaterales", pais, "millon_usd"),
+        )
+
         # Gráfico 100% stacked bar
         total_por_anio = df_pais_agg.groupby('Time')[pais].transform('sum')
         df_pais_agg['proporcion'] = df_pais_agg[pais] / total_por_anio
@@ -428,6 +451,13 @@ elif pagina == 'Multilaterales':
             hovertemplate="<b>Año:</b> %{x}<br><b>Multilateral:</b> %{fullData.name}<br><b>Porcentaje:</b> %{y:.1%}<extra></extra>"
         )
         st.plotly_chart(fig2, use_container_width=True)
+        fig2_data = df_pais_agg[["Time", "Multilateral", "proporcion"]].rename(
+            columns={"Time": "Anio", "proporcion": "participacion"}
+        )
+        download_csv_button(
+            fig2_data,
+            build_csv_filename("multilaterales", pais, "participacion"),
+        )
     else:
         st.info(f'No se encontró la columna "{pais}" en la base de datos para el SC2 seleccionado.')
 
@@ -444,6 +474,7 @@ elif pagina == 'Plazos y Tasas':
     ]
     sc2_options = [opt for opt in sc2_allowed if 'SC2' in df.columns and opt in df['SC2'].dropna().unique()]
     sc2 = st.sidebar.selectbox('Selecciona SC2', sc2_options) if sc2_options else None
+    sc2_label = sc2 if sc2 else 'todos_sc2'
     df_filtrado = df[df['Multilateral'] == multilateral]
     if sc2 is not None:
         df_filtrado = df_filtrado[df_filtrado['SC2'] == sc2]
@@ -480,6 +511,10 @@ elif pagina == 'Plazos y Tasas':
             fig_arg.update_yaxes(showgrid=False)
             fig_arg.update_layout(title={'text': '', 'x': 0.5, 'xanchor': 'center'})
             st.plotly_chart(fig_arg, use_container_width=True)
+            download_csv_button(
+                df_arg_agg.rename(columns={"Time": "Anio", pais_arg: "valor"}),
+                build_csv_filename("plazos_tasas", multilateral, "argentina", sc2_label),
+            )
     else:
         with col1:
             st.info('No hay datos para Argentina con el Multilateral seleccionado.')
@@ -498,6 +533,10 @@ elif pagina == 'Plazos y Tasas':
                 fig_bolivia.update_yaxes(showgrid=False)
                 fig_bolivia.update_layout(title={'text': '', 'x': 0.5, 'xanchor': 'center'})
                 st.plotly_chart(fig_bolivia, use_container_width=True)
+                download_csv_button(
+                    df_bolivia_agg.rename(columns={"Time": "Anio", bolivia_col: "valor"}),
+                    build_csv_filename("plazos_tasas", multilateral, "bolivia", sc2_label),
+                )
         else:
             with col2:
                 st.info('No hay datos para Bolivia con el Multilateral seleccionado.')
@@ -522,6 +561,10 @@ elif pagina == 'Plazos y Tasas':
                 fig_brasil.update_yaxes(showgrid=False)
                 fig_brasil.update_layout(title={'text': '', 'x': 0.5, 'xanchor': 'center'})
                 st.plotly_chart(fig_brasil, use_container_width=True)
+                download_csv_button(
+                    df_brasil_agg.rename(columns={"Time": "Anio", brasil_col: "valor"}),
+                    build_csv_filename("plazos_tasas", multilateral, "brasil", sc2_label),
+                )
         else:
             with col3:
                 st.info('No hay datos para Brasil con el Multilateral seleccionado.')
@@ -543,6 +586,10 @@ elif pagina == 'Plazos y Tasas':
                 fig_paraguay.update_yaxes(showgrid=False)
                 fig_paraguay.update_layout(title={'text': '', 'x': 0.5, 'xanchor': 'center'})
                 st.plotly_chart(fig_paraguay, use_container_width=True)
+                download_csv_button(
+                    df_paraguay_agg.rename(columns={"Time": "Anio", paraguay_col: "valor"}),
+                    build_csv_filename("plazos_tasas", multilateral, "paraguay", sc2_label),
+                )
         else:
             with col4:
                 st.info('No hay datos para Paraguay con el Multilateral seleccionado.')
@@ -599,11 +646,17 @@ elif pagina == 'Comprometido':
                     fig_arg.update_traces(
                         hovertemplate="<b>Año:</b> %{x}<br><b>Multilateral:</b> %{fullData.name}<br><b>Valor:</b> %{y:,.2f} millones USD<extra></extra>"
                     )
-                    fig_arg.update_layout(
-                        title={'text': 'Millones USD', 'x': 0.5, 'xanchor': 'center'},
-                        showlegend=False
-                    )
-                    st.plotly_chart(fig_arg, use_container_width=True)
+                fig_arg.update_layout(
+                    title={'text': 'Millones USD', 'x': 0.5, 'xanchor': 'center'},
+                    showlegend=False
+                )
+                st.plotly_chart(fig_arg, use_container_width=True)
+                download_csv_button(
+                    df_arg_agg.rename(
+                        columns={"Time": "Anio", "valor_millones": "valor_millones_usd"}
+                    ),
+                    build_csv_filename("comprometido", "argentina"),
+                )
             else:
                 with col1:
                     st.info('No hay datos para Argentina con SC2 = Commitments.')
@@ -634,11 +687,17 @@ elif pagina == 'Comprometido':
                     fig_bol.update_traces(
                         hovertemplate="<b>Año:</b> %{x}<br><b>Multilateral:</b> %{fullData.name}<br><b>Valor:</b> %{y:,.2f} millones USD<extra></extra>"
                     )
-                    fig_bol.update_layout(
-                        title={'text': 'Millones USD', 'x': 0.5, 'xanchor': 'center'},
-                        showlegend=False
-                    )
-                    st.plotly_chart(fig_bol, use_container_width=True)
+                fig_bol.update_layout(
+                    title={'text': 'Millones USD', 'x': 0.5, 'xanchor': 'center'},
+                    showlegend=False
+                )
+                st.plotly_chart(fig_bol, use_container_width=True)
+                download_csv_button(
+                    df_bol_agg.rename(
+                        columns={"Time": "Anio", "valor_millones": "valor_millones_usd"}
+                    ),
+                    build_csv_filename("comprometido", "bolivia"),
+                )
             else:
                 with col2:
                     st.info('No hay datos para Bolivia con SC2 = Commitments.')
@@ -672,11 +731,17 @@ elif pagina == 'Comprometido':
                     fig_bra.update_traces(
                         hovertemplate="<b>Año:</b> %{x}<br><b>Multilateral:</b> %{fullData.name}<br><b>Valor:</b> %{y:,.2f} millones USD<extra></extra>"
                     )
-                    fig_bra.update_layout(
-                        title={'text': 'Millones USD', 'x': 0.5, 'xanchor': 'center'},
-                        showlegend=False
-                    )
-                    st.plotly_chart(fig_bra, use_container_width=True)
+                fig_bra.update_layout(
+                    title={'text': 'Millones USD', 'x': 0.5, 'xanchor': 'center'},
+                    showlegend=False
+                )
+                st.plotly_chart(fig_bra, use_container_width=True)
+                download_csv_button(
+                    df_bra_agg.rename(
+                        columns={"Time": "Anio", "valor_millones": "valor_millones_usd"}
+                    ),
+                    build_csv_filename("comprometido", "brasil"),
+                )
             else:
                 with col3:
                     st.info('No hay datos para Brasil con SC2 = Commitments.')
@@ -707,11 +772,17 @@ elif pagina == 'Comprometido':
                     fig_pry.update_traces(
                         hovertemplate="<b>Año:</b> %{x}<br><b>Multilateral:</b> %{fullData.name}<br><b>Valor:</b> %{y:,.2f} millones USD<extra></extra>"
                     )
-                    fig_pry.update_layout(
-                        title={'text': 'Millones USD', 'x': 0.5, 'xanchor': 'center'},
-                        showlegend=False
-                    )
-                    st.plotly_chart(fig_pry, use_container_width=True)
+                fig_pry.update_layout(
+                    title={'text': 'Millones USD', 'x': 0.5, 'xanchor': 'center'},
+                    showlegend=False
+                )
+                st.plotly_chart(fig_pry, use_container_width=True)
+                download_csv_button(
+                    df_pry_agg.rename(
+                        columns={"Time": "Anio", "valor_millones": "valor_millones_usd"}
+                    ),
+                    build_csv_filename("comprometido", "paraguay"),
+                )
             else:
                 with col4:
                     st.info('No hay datos para Paraguay con SC2 = Commitments.')
