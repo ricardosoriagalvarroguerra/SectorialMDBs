@@ -365,13 +365,6 @@ def render() -> None:
             categoryorder="array",
             categoryarray=year_order_str,
         )
-        year_total_annotations = (
-            absolute_with_percentage.groupby("transaction_year_str")["value_millions"]
-            .sum()
-            .reindex(year_order_str)
-            .reset_index()
-        )
-
         for trace in fig_absolute.data:
             source_name = trace.name
             source_rows = absolute_with_percentage[absolute_with_percentage["source"] == source_name]
@@ -397,24 +390,6 @@ def render() -> None:
                 "Monto: %{customdata[1]:,.2f} millones USD<br>"
                 "Participación: %{customdata[0]:.1f}%<extra></extra>"
             )
-            trace.text = [f"{percentages_by_year.get(x, 0):.1f}%" if percentages_by_year.get(x, 0) else "" for x in trace.x]
-            trace.textposition = "inside"
-            trace.texttemplate = "%{text}"
-
-        fig_absolute.add_trace(
-            go.Scatter(
-                x=year_total_annotations["transaction_year_str"],
-                y=year_total_annotations["value_millions"],
-                mode="text",
-                text=[
-                    f"{total:,.2f} millones USD" if pd.notna(total) else ""
-                    for total in year_total_annotations["value_millions"]
-                ],
-                textposition="top center",
-                showlegend=False,
-                hoverinfo="skip",
-            )
-        )
 
         st.plotly_chart(fig_absolute, use_container_width=True)
 
