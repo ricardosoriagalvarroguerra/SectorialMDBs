@@ -6,12 +6,14 @@ import plotly.graph_objects as go
 from color_utils import get_mdb_color_map, order_sources
 from date_utils import extract_transaction_years, parse_transaction_dates
 from download_utils import build_csv_filename, download_csv_button
-from data_utils import standardise_recipient_countries
+from data_utils import load_iati_dataset, standardise_recipient_countries
 
 
 @st.cache_data
-def load_financiamiento() -> pd.DataFrame:
-    df = pd.read_parquet("BDDGLOBALMERGED_ACTUALIZADO.parquet")
+def load_financiamiento() -> pd.DataFrame | None:
+    df = load_iati_dataset()
+    if df is None:
+        return None
     df = standardise_recipient_countries(df)
     df["transactiondate_isodate"] = parse_transaction_dates(
         df["transactiondate_isodate"]

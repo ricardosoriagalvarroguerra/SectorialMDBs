@@ -9,7 +9,7 @@ from download_utils import build_csv_filename, download_csv_button
 from dbs_page import render as render_dbs
 from sectores_page import render as render_sectores
 from financiamiento_page import render as render_financiamiento
-from data_utils import standardise_recipient_countries
+from data_utils import load_iati_dataset, standardise_recipient_countries
 
 # Paleta unificada para los multilaterales según lineamientos IDS.
 MULTILATERAL_COLOR_MAP = {
@@ -182,16 +182,12 @@ pagina = st.session_state.get('pagina', st.session_state.get('pagina_ids', 'Deud
 # Cargar datos IATI
 @st.cache_data
 def load_iati_data():
-    try:
-        df = pd.read_parquet('BDDGLOBALMERGED_ACTUALIZADO.parquet')
-        df = standardise_recipient_countries(df)
-        df.rename(columns={"macro_sector": "macrosector"}, inplace=True)
-        # Ajuste manual para proyecto específico con valor incorrecto
-        mask = df['iatiidentifier'] == 'XM-DAC-46027-PY028'
-        df.loc[mask, 'value_usd'] = 354200000
-        return df
-    except Exception:
+    df = load_iati_dataset()
+    if df is None:
         return None
+    df = standardise_recipient_countries(df)
+    df.rename(columns={"macro_sector": "macrosector"}, inplace=True)
+    return df
 
 df_iati = load_iati_data()
 

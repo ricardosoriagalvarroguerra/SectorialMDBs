@@ -9,7 +9,7 @@ from io import BytesIO
 from color_utils import get_mdb_color_map, order_sources
 from date_utils import extract_transaction_years, parse_transaction_dates
 from download_utils import build_csv_filename, download_csv_button
-from data_utils import standardise_recipient_countries
+from data_utils import load_iati_dataset, standardise_recipient_countries
 
 # Utilidad para manejar multiselect con opción "Seleccionar todo"
 def handle_multiselect_behavior(selected_options, all_options, select_all_text):
@@ -39,8 +39,10 @@ MACRO_COLOR_MAP = {
 
 
 @st.cache_data
-def load_sectores() -> pd.DataFrame:
-    df = pd.read_parquet("BDDGLOBALMERGED_ACTUALIZADO.parquet")
+def load_sectores() -> pd.DataFrame | None:
+    df = load_iati_dataset()
+    if df is None:
+        return None
     df = standardise_recipient_countries(df)
     df["transactiondate_isodate"] = parse_transaction_dates(
         df["transactiondate_isodate"]
@@ -54,6 +56,9 @@ def load_sectores() -> pd.DataFrame:
 
 def render():
     df = load_sectores()
+    if df is None:
+        st.info("No se pudieron cargar los datos.")
+        return
     fp_mask = df["source"].str.upper().eq("FONPLATA")
     if fp_mask.any():
         fp_min, fp_max = df.loc[fp_mask, "value_usd"].agg(["min", "max"])
