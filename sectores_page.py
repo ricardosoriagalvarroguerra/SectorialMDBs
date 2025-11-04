@@ -9,6 +9,7 @@ from io import BytesIO
 from color_utils import get_mdb_color_map, order_sources
 from date_utils import extract_transaction_years, parse_transaction_dates
 from download_utils import build_csv_filename, download_csv_button
+from data_utils import standardise_recipient_countries
 
 # Utilidad para manejar multiselect con opción "Seleccionar todo"
 def handle_multiselect_behavior(selected_options, all_options, select_all_text):
@@ -40,6 +41,7 @@ MACRO_COLOR_MAP = {
 @st.cache_data
 def load_sectores() -> pd.DataFrame:
     df = pd.read_parquet("BDDGLOBALMERGED_ACTUALIZADO.parquet")
+    df = standardise_recipient_countries(df)
     df["transactiondate_isodate"] = parse_transaction_dates(
         df["transactiondate_isodate"]
     )
@@ -72,17 +74,17 @@ def render():
     country_name_map = {
         "Argentina": ["Argentina"],
         "Bolivia": ["Bolivia (Plurinational State of)"],
-        "Brasil": ["Brazil"],
+        "Brasil": ["Brasil", "Brazil"],
         "Paraguay": ["Paraguay"],
         "Uruguay": ["Uruguay"],
         "Resto Latam": [
             "Barbados",
-            "Bahamas (the)",
+            "Bahamas",
             "Belize",
             "Chile",
             "Costa Rica",
             "Colombia",
-            "Dominican Republic (the)",
+            "Dominican Republic",
             "Guatemala",
             "Guyana",
             "Ecuador",
@@ -95,10 +97,9 @@ def render():
             "Peru",
             "Suriname",
             "El Salvador",
-            "Venezuela (Bolivarian Republic of)",
+            "Venezuela",
             "Trinidad and Tobago",
             "Antigua and Barbuda",
-            "Dominica",
             "Grenada",
             "Saint Lucia",
             "Saint Vincent and the Grenadines",
@@ -335,7 +336,7 @@ def render():
         )
         sector_default_idx = get_default_index(sector_list, "Infraestructura")
         country_a_default_idx = get_default_index(country_list, "Argentina")
-        country_b_default_idx = get_default_index(country_list, "Brazil")
+        country_b_default_idx = get_default_index(country_list, "Brasil")
         col1, col2 = st.columns(2)
         with col1:
             sector_a = st.selectbox(

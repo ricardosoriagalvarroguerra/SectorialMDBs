@@ -6,11 +6,13 @@ import plotly.graph_objects as go
 from color_utils import get_mdb_color_map, order_sources
 from date_utils import extract_transaction_years, parse_transaction_dates
 from download_utils import build_csv_filename, download_csv_button
+from data_utils import standardise_recipient_countries
 
 
 @st.cache_data
 def load_financiamiento() -> pd.DataFrame:
     df = pd.read_parquet("BDDGLOBALMERGED_ACTUALIZADO.parquet")
+    df = standardise_recipient_countries(df)
     df["transactiondate_isodate"] = parse_transaction_dates(
         df["transactiondate_isodate"]
     )
@@ -55,7 +57,7 @@ def render() -> None:
     focus_countries = [
         "Argentina",
         "Bolivia (Plurinational State of)",
-        "Brazil",
+        "Brasil",
         "Paraguay",
         "Uruguay",
     ]
