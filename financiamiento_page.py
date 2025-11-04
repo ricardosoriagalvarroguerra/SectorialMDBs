@@ -4,7 +4,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 
 from color_utils import get_mdb_color_map, order_sources
-from date_utils import parse_transaction_dates
+from date_utils import extract_transaction_years, parse_transaction_dates
 from download_utils import build_csv_filename, download_csv_button
 
 
@@ -33,7 +33,8 @@ def render() -> None:
 
     df["macro_sector"] = df["macro_sector"].fillna("Sin dato")
     df["recipientcountry_codename"] = df["recipientcountry_codename"].fillna("Sin dato")
-    df["transaction_year"] = df["transactiondate_isodate"].dt.year
+    df["transaction_year"] = extract_transaction_years(df["transactiondate_isodate"])
+    df = df.dropna(subset=["transaction_year"])
 
     raw_min_year = int(df["transaction_year"].min())
     raw_max_year = int(df["transaction_year"].max())

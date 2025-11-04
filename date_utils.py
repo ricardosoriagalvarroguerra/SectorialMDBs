@@ -2,12 +2,17 @@
 
 from __future__ import annotations
 
+import re
+
 import pandas as pd
 from pandas.api.types import is_datetime64_any_dtype, is_numeric_dtype
 
 # Accepted lower/upper bounds for realistic civil years.
 _MIN_VALID_YEAR = 1900
 _MAX_VALID_YEAR = 2100
+
+
+_YEAR_PREFIX_RE = re.compile(r"^\s*(\d{4})")
 
 
 def parse_transaction_dates(series: pd.Series) -> pd.Series:
@@ -63,3 +68,25 @@ def parse_transaction_dates(series: pd.Series) -> pd.Series:
 
     # As a last resort defer to pandas' parser.
     return pd.to_datetime(series, errors="coerce", infer_datetime_format=True)
+
+
+def extract_transaction_years(series: pd.Series) -> pd.Series:
+    """Return the civil year associated to the provided transaction dates.
+
+    The original data uses a mixture of datetime objects, ISO formatted
+    strings, plain years and integer encodings such as ``20231231``. Relying on
+    pandas to infer the type can occasionally push observations that fall on
+    ``December 31`` to the following year when the downstream visualisations
+    only care about the calendar year. This helper extracts the leading four
+    digits of each value, preserving ``NaN`` entries and avoiding ambiguous
+    conversions.
+    """
+
+    if is_datetime64_any_dtype(series):
+        return series.dt.year.astype("Int64")
+
+    as_string = series.astype("string")
+    year_tokens = as_string.str.extract(_YEAR_PREFIX_RE, expand=False)
+    years = pd.to_numeric(year_tokens, errors="coerce")
+    years = years.where(years.between(_MIN_VALID_YEAR, _MAX_VALID_YEAR))
+    return years.astype("Int64")

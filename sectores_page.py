@@ -7,7 +7,7 @@ from pandas.api.types import is_string_dtype
 from io import BytesIO
 
 from color_utils import get_mdb_color_map, order_sources
-from date_utils import parse_transaction_dates
+from date_utils import extract_transaction_years, parse_transaction_dates
 from download_utils import build_csv_filename, download_csv_button
 
 # Utilidad para manejar multiselect con opción "Seleccionar todo"
@@ -46,7 +46,7 @@ def load_sectores() -> pd.DataFrame:
     if is_string_dtype(df["sector_code"]):
         df["sector_code"] = pd.to_numeric(df["sector_code"], errors="coerce")
     df["sector_code"] = df["sector_code"].astype("Int64")
-    df["year"] = df["transactiondate_isodate"].dt.year.astype("Int64")
+    df["year"] = extract_transaction_years(df["transactiondate_isodate"])
     df["month"] = df["transactiondate_isodate"].dt.to_period("M").astype(str)
     return df
 
