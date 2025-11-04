@@ -8,6 +8,10 @@ import pandas as pd
 from pandas.api.types import is_string_dtype
 
 
+_IATI_DATASET_PATH = "BDDGLOBALMERGED_ACTUALIZADO.parquet"
+_IATI_MANUAL_VALUE_FIXES = {"XM-DAC-46027-PY028": 354_200_000}
+
+
 _COUNTRY_STANDARDISATION_MAP = {
     "Bolivia": "Bolivia (Plurinational State of)",
     "Brasil": "Brasil",
@@ -27,6 +31,26 @@ def _clean_string_series(series: pd.Series) -> pd.Series:
         # Convert to pandas' string dtype so ``str`` accessors are available.
         series = series.astype("string")
     return series.str.strip()
+
+
+def load_iati_dataset(path: str = _IATI_DATASET_PATH) -> pd.DataFrame | None:
+    """Return the merged IATI dataset with manual data corrections applied."""
+
+    try:
+        df = pd.read_parquet(path)
+    except Exception:
+        return None
+
+    if df is None:
+        return None
+
+    df = df.copy()
+    if {"iatiidentifier", "value_usd"}.issubset(df.columns):
+        for identifier, corrected_value in _IATI_MANUAL_VALUE_FIXES.items():
+            mask = df["iatiidentifier"] == identifier
+            if mask.any():
+                df.loc[mask, "value_usd"] = corrected_value
+    return df
 
 
 def standardise_recipient_countries(
