@@ -10,6 +10,24 @@ from pandas.api.types import is_string_dtype
 
 _IATI_DATASET_PATH = "BDDGLOBALMERGED_ACTUALIZADO.parquet"
 _IATI_MANUAL_VALUE_FIXES = {"XM-DAC-46027-PY028": 354_200_000}
+_IATI_EXCLUDED_IDENTIFIERS = {
+    "ID_CAF-5",
+    "ID_CAF-9",
+    "ID_CAF-17",
+    "ID_CAF-23",
+    "ID_CAF-27",
+    "ID_CAF-37",
+    "ID_CAF-45",
+    "ID_CAF-56",
+    "ID_CAF-58",
+    "ID_CAF-61",
+    "ID_CAF-94",
+    "ID_CAF-112",
+    "ID_CAF-115",
+    "ID_CAF-118",
+    "ID_CAF-120",
+    "ID_CAF-274",
+}
 
 
 _COUNTRY_STANDARDISATION_MAP = {
@@ -50,6 +68,8 @@ def load_iati_dataset(path: str = _IATI_DATASET_PATH) -> pd.DataFrame | None:
             mask = df["iatiidentifier"] == identifier
             if mask.any():
                 df.loc[mask, "value_usd"] = corrected_value
+        if _IATI_EXCLUDED_IDENTIFIERS:
+            df = df[~df["iatiidentifier"].isin(_IATI_EXCLUDED_IDENTIFIERS)]
     return df
 
 
