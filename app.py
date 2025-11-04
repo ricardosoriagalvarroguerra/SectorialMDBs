@@ -6,6 +6,7 @@ import plotly.express as px
 from typing import Optional
 
 from download_utils import build_csv_filename, download_csv_button
+from dbs_page import render as render_dbs
 from sectores_page import render as render_sectores
 from financiamiento_page import render as render_financiamiento
 
@@ -164,6 +165,7 @@ paginas_ids = [
     'Plazos y Tasas',
     'Comprometido',
     'Visor BDD',
+    'DBs',
 ]
 
 st.sidebar.radio('Ir a:', paginas_ids, key='pagina_ids', on_change=set_pagina_from_ids)
@@ -813,6 +815,9 @@ elif pagina == 'Visor BDD':
     end_idx = start_idx + page_size
     st.dataframe(df.iloc[start_idx:end_idx])
     st.caption(f"Mostrando filas {start_idx+1} a {min(end_idx, total_rows)} de {total_rows}")
+
+elif pagina == 'DBs':
+    render_dbs()
 
 elif pagina == 'Financiamiento para el desarrollo':
     render_financiamiento()
