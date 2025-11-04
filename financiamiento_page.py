@@ -42,7 +42,7 @@ def render() -> None:
 
     raw_min_year = int(df["transaction_year"].min())
     raw_max_year = int(df["transaction_year"].max())
-    desired_min_year, desired_max_year = 2005, 2024
+    desired_min_year, desired_max_year = 2014, 2024
     min_year = max(desired_min_year, raw_min_year)
     max_year = min(desired_max_year, raw_max_year)
     if min_year > max_year:
@@ -235,16 +235,20 @@ def render() -> None:
 
         st.subheader("Participación porcentual de financiamiento por fuente")
 
-        percentages = (
+        year_source_totals = (
             df_view.groupby(["transaction_year", "source"], as_index=False)["value_usd"].sum()
         )
-        percentages = (
-            percentages.sort_values(["transaction_year", "source"]).reset_index(drop=True)
+        year_source_totals = (
+            year_source_totals.sort_values(["transaction_year", "source"]).reset_index(drop=True)
         )
-        if percentages.empty:
+        if year_source_totals.empty:
             st.info("No hay montos registrados para los filtros seleccionados.")
             return
 
+        year_source_totals["value_millions"] = year_source_totals["value_usd"] / 1_000_000
+        year_source_totals["transaction_year_str"] = year_source_totals["transaction_year"].astype(str)
+
+        percentages = year_source_totals.copy()
         percentages["year_total"] = percentages.groupby("transaction_year")["value_usd"].transform(
             "sum"
         )
@@ -253,9 +257,7 @@ def render() -> None:
             st.info("No hay montos registrados para los filtros seleccionados.")
             return
 
-        percentages["value_millions"] = percentages["value_usd"] / 1_000_000
         percentages["percentage"] = percentages["value_usd"] / percentages["year_total"] * 100
-        percentages["transaction_year_str"] = percentages["transaction_year"].astype(str)
 
         fig_total = px.bar(
             percentages,
@@ -320,6 +322,59 @@ def render() -> None:
         download_csv_button(
             download_df,
             build_csv_filename("financiamiento_fuente", "participacion"),
+        )
+
+        st.subheader("Distribución anual del financiamiento por fuente")
+
+        fig_absolute = px.bar(
+            year_source_totals,
+            x="transaction_year_str",
+            y="value_millions",
+            color="source",
+            color_discrete_map=color_map,
+            category_orders={
+                "source": ordered_sources,
+                "transaction_year_str": year_order_str,
+            },
+            labels={
+                "transaction_year_str": "Año",
+                "value_millions": "Monto anual (millones USD)",
+                "source": "Fuente",
+            },
+        )
+        fig_absolute.update_layout(
+            yaxis_title="Monto total (millones USD)",
+            margin=dict(l=0, r=0, t=10, b=0),
+            barmode="stack",
+            height=360,
+        )
+        fig_absolute.update_xaxes(
+            type="category",
+            categoryorder="array",
+            categoryarray=year_order_str,
+        )
+        fig_absolute.update_traces(
+            hovertemplate=(
+                "Fuente: %{fullData.name}<br>"
+                "Año: %{x}<br>"
+                "Monto: %{y:,.2f} millones USD<extra></extra>"
+            )
+        )
+
+        st.plotly_chart(fig_absolute, use_container_width=True)
+
+        download_amounts_df = year_source_totals[
+            ["transaction_year", "source", "value_usd", "value_millions"]
+        ].rename(
+            columns={
+                "transaction_year": "anio",
+                "value_usd": "valor_usd",
+                "value_millions": "valor_millones_usd",
+            }
+        )
+        download_csv_button(
+            download_amounts_df,
+            build_csv_filename("financiamiento_fuente", "montos"),
         )
         return
 
