@@ -8,6 +8,8 @@ import pandas as pd
 import streamlit as st
 from pandas.api.types import is_datetime64_any_dtype, is_datetime64tz_dtype
 
+from date_utils import parse_transaction_dates
+
 REPO_ROOT = Path(__file__).resolve().parent
 
 
@@ -26,10 +28,18 @@ def _prepare_dataframe(df: pd.DataFrame) -> pd.DataFrame:
         series = cleaned[column]
         if is_datetime64tz_dtype(series):
             cleaned[column] = series.dt.tz_localize(None)
-        elif is_datetime64_any_dtype(series):
+            continue
+
+        if is_datetime64_any_dtype(series):
             tz = getattr(series.dt, "tz", None)
             if tz is not None:
                 cleaned[column] = series.dt.tz_localize(None)
+            continue
+
+        if "date" in column.lower():
+            parsed = parse_transaction_dates(series)
+            if is_datetime64_any_dtype(parsed):
+                cleaned[column] = parsed
     return cleaned
 
 
