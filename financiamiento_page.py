@@ -326,8 +326,20 @@ def render() -> None:
 
         st.subheader("Distribución anual del financiamiento por fuente")
 
+        absolute_with_percentage = year_source_totals.copy()
+        absolute_with_percentage["year_total_millions"] = (
+            absolute_with_percentage.groupby("transaction_year_str")["value_millions"].transform("sum")
+        )
+        absolute_with_percentage["percentage"] = 0.0
+        valid_totals_mask = absolute_with_percentage["year_total_millions"] > 0
+        absolute_with_percentage.loc[valid_totals_mask, "percentage"] = (
+            absolute_with_percentage.loc[valid_totals_mask, "value_millions"]
+            / absolute_with_percentage.loc[valid_totals_mask, "year_total_millions"]
+            * 100
+        )
+
         fig_absolute = px.bar(
-            year_source_totals,
+            absolute_with_percentage,
             x="transaction_year_str",
             y="value_millions",
             color="source",
@@ -353,11 +365,54 @@ def render() -> None:
             categoryorder="array",
             categoryarray=year_order_str,
         )
-        fig_absolute.update_traces(
-            hovertemplate=(
+        year_total_annotations = (
+            absolute_with_percentage.groupby("transaction_year_str")["value_millions"]
+            .sum()
+            .reindex(year_order_str)
+            .reset_index()
+        )
+
+        for trace in fig_absolute.data:
+            source_name = trace.name
+            source_rows = absolute_with_percentage[absolute_with_percentage["source"] == source_name]
+            percentages_by_year = dict(
+                zip(
+                    source_rows["transaction_year_str"],
+                    source_rows["percentage"],
+                )
+            )
+            values_by_year = dict(
+                zip(
+                    source_rows["transaction_year_str"],
+                    source_rows["value_millions"],
+                )
+            )
+            trace.customdata = [
+                [percentages_by_year.get(x, 0), values_by_year.get(x, 0)]
+                for x in trace.x
+            ]
+            trace.hovertemplate = (
                 "Fuente: %{fullData.name}<br>"
                 "Año: %{x}<br>"
-                "Monto: %{y:,.2f} millones USD<extra></extra>"
+                "Monto: %{customdata[1]:,.2f} millones USD<br>"
+                "Participación: %{customdata[0]:.1f}%<extra></extra>"
+            )
+            trace.text = [f"{percentages_by_year.get(x, 0):.1f}%" if percentages_by_year.get(x, 0) else "" for x in trace.x]
+            trace.textposition = "inside"
+            trace.texttemplate = "%{text}"
+
+        fig_absolute.add_trace(
+            go.Scatter(
+                x=year_total_annotations["transaction_year_str"],
+                y=year_total_annotations["value_millions"],
+                mode="text",
+                text=[
+                    f"{total:,.2f} millones USD" if pd.notna(total) else ""
+                    for total in year_total_annotations["value_millions"]
+                ],
+                textposition="top center",
+                showlegend=False,
+                hoverinfo="skip",
             )
         )
 
