@@ -9,9 +9,18 @@ from download_utils import build_csv_filename, download_csv_button
 from data_utils import load_iati_dataset, standardise_recipient_countries
 
 
-@st.cache_data
+@st.cache_resource(show_spinner=False)
 def load_financiamiento() -> pd.DataFrame | None:
-    df = load_iati_dataset()
+    df = load_iati_dataset(
+        columns=(
+            "iatiidentifier",
+            "transactiondate_isodate",
+            "recipientcountry_codename",
+            "source",
+            "macro_sector",
+            "value_usd",
+        )
+    )
     if df is None:
         return None
     df = standardise_recipient_countries(df)
@@ -217,7 +226,7 @@ def render() -> None:
                 height=280,
             )
 
-            columns[idx % 2].plotly_chart(fig, use_container_width=True)
+            columns[idx % 2].plotly_chart(fig, width="stretch")
             download_df = grouped[["transaction_year", "value_usd", "value_millions"]].rename(
                 columns={
                     "transaction_year": "anio",
@@ -308,7 +317,7 @@ def render() -> None:
                 "Monto: %{customdata[0]:,.2f} millones USD<extra></extra>"
             )
 
-        st.plotly_chart(fig_total, use_container_width=True)
+        st.plotly_chart(fig_total, width="stretch")
         download_df = percentages[
             ["transaction_year", "source", "value_usd", "value_millions", "percentage"]
         ].rename(
@@ -391,7 +400,7 @@ def render() -> None:
                 "Participación: %{customdata[0]:.1f}%<extra></extra>"
             )
 
-        st.plotly_chart(fig_absolute, use_container_width=True)
+        st.plotly_chart(fig_absolute, width="stretch")
 
         download_amounts_df = year_source_totals[
             ["transaction_year", "source", "value_usd", "value_millions"]
@@ -503,7 +512,7 @@ def render() -> None:
                 "Actividades: %{customdata[2]}<extra></extra>"
             )
         )
-        st.plotly_chart(fig_bubble, use_container_width=True)
+        st.plotly_chart(fig_bubble, width="stretch")
         download_csv_button(
             bubble_df.rename(
                 columns={
@@ -656,7 +665,7 @@ def render() -> None:
             )
         )
         fig_sankey.update_layout(height=500, width=1000)
-        st.plotly_chart(fig_sankey, use_container_width=True)
+        st.plotly_chart(fig_sankey, width="stretch")
         download_csv_button(
             sankey_df.rename(
                 columns={

@@ -38,9 +38,20 @@ MACRO_COLOR_MAP = {
 }
 
 
-@st.cache_data
+@st.cache_resource(show_spinner=False)
 def load_sectores() -> pd.DataFrame | None:
-    df = load_iati_dataset()
+    df = load_iati_dataset(
+        columns=(
+            "iatiidentifier",
+            "transactiondate_isodate",
+            "recipientcountry_codename",
+            "source",
+            "macro_sector",
+            "sector_code",
+            "sector_codename",
+            "value_usd",
+        )
+    )
     if df is None:
         return None
     df = standardise_recipient_countries(df)
@@ -224,7 +235,7 @@ def render():
                 color_discrete_sequence=["#fca311"],
             )
             fig_bar.update_layout(yaxis={"categoryorder": "array", "categoryarray": macro_order})
-            st.plotly_chart(fig_bar, use_container_width=True)
+            st.plotly_chart(fig_bar, width="stretch")
             download_csv_button(
                 df_top.rename(
                     columns={
@@ -246,7 +257,7 @@ def render():
                 color_discrete_map=macro_color_map,
             )
             fig_donut.update_traces(hovertemplate="%{label}: %{value:,.2f} millones")
-            st.plotly_chart(fig_donut, use_container_width=True)
+            st.plotly_chart(fig_donut, width="stretch")
             download_csv_button(
                 df_donut.rename(columns={"value_usd": "valor_millones_usd"}),
                 build_csv_filename("sectores_panorama", "macro_participacion"),
@@ -295,7 +306,7 @@ def render():
                 barmode="stack",
             )
             fig_stack.update_layout(showlegend=False)
-            st.plotly_chart(fig_stack, use_container_width=True)
+            st.plotly_chart(fig_stack, width="stretch")
             download_csv_button(
                 df_year_macro.rename(columns={"value_usd": "valor_millones_usd"}),
                 build_csv_filename("sectores_panorama", "macro_series"),
@@ -322,7 +333,7 @@ def render():
             )
             fig_percent.update_yaxes(range=[0, 100])
             fig_percent.update_layout(showlegend=False)
-            st.plotly_chart(fig_percent, use_container_width=True)
+            st.plotly_chart(fig_percent, width="stretch")
             download_csv_button(
                 df_percent.rename(
                     columns={
@@ -411,7 +422,7 @@ def render():
             )
         )
         fig_bar.update_xaxes(title="")
-        st.plotly_chart(fig_bar, use_container_width=True)
+        st.plotly_chart(fig_bar, width="stretch")
         download_csv_button(
             comp_df.rename(columns={"value_usd": "valor_millones_usd"}),
             build_csv_filename("sectores_comparador", "series"),
@@ -586,7 +597,7 @@ def render():
             ),
             margin=dict(t=70, b=120),
         )
-        st.plotly_chart(fig_pct, use_container_width=True)
+        st.plotly_chart(fig_pct, width="stretch")
         dist_exports = []
         for label, macro_sel, country_sel, subset, dist_df in dist_results:
             if dist_df is None or dist_df.empty:
@@ -661,7 +672,7 @@ def render():
                 color_discrete_sequence=["#fca311"],
             )
             fig_country.update_layout(yaxis={"categoryorder": "total ascending"})
-            st.plotly_chart(fig_country, use_container_width=True)
+            st.plotly_chart(fig_country, width="stretch")
             download_csv_button(
                 top_countries.rename(columns={"value_usd": "valor_millones_usd"}),
                 build_csv_filename("sectores_ficha", sector_sel, "paises"),
@@ -678,7 +689,7 @@ def render():
                 category_orders={"source": source_order},
                 color_discrete_map=source_color_map,
             )
-            st.plotly_chart(fig_source, use_container_width=True)
+            st.plotly_chart(fig_source, width="stretch")
             download_csv_button(
                 top_sources.rename(columns={"value_usd": "valor_millones_usd"}),
                 build_csv_filename("sectores_ficha", sector_sel, "mdbs"),
@@ -716,7 +727,7 @@ def render():
             summary["Monto (millones USD)"] = (
                 summary["Monto (millones USD)"].round().astype(int)
             )
-            st.dataframe(summary, use_container_width=True)
+            st.dataframe(summary, width="stretch")
 
     elif subpage == "Matrices de concentración":
         st.title("Matrices de concentración")
@@ -751,7 +762,7 @@ def render():
             )
         )
         fig_heat.update_yaxes(autorange="reversed")
-        st.plotly_chart(fig_heat, use_container_width=True)
+        st.plotly_chart(fig_heat, width="stretch")
         download_csv_button(
             pivot.reset_index().rename(columns={"macro_sector": "macro_sector"}),
             build_csv_filename("sectores_matrices", "macro_vs_pais"),
@@ -782,7 +793,7 @@ def render():
             )
         )
         fig_heat2.update_yaxes(autorange="reversed")
-        st.plotly_chart(fig_heat2, use_container_width=True)
+        st.plotly_chart(fig_heat2, width="stretch")
         download_csv_button(
             pivot2.reset_index().rename(columns={"index": "macro_sector"}),
             build_csv_filename("sectores_matrices", "macro_vs_ano"),
@@ -859,7 +870,7 @@ def render():
             symbol_map=symbol_map,
         )
         fig_bubble.update_traces(marker=dict(size=12))
-        st.plotly_chart(fig_bubble, use_container_width=True)
+        st.plotly_chart(fig_bubble, width="stretch")
         download_csv_button(
             bubble_df.rename(
                 columns={
@@ -1026,7 +1037,7 @@ def render():
                 )
             )
             fig_sankey.update_layout(height=600, width=1000)
-            st.plotly_chart(fig_sankey, use_container_width=True)
+            st.plotly_chart(fig_sankey, width="stretch")
             download_csv_button(
                 sankey_df.rename(
                     columns={

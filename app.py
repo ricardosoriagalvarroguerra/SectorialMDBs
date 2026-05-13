@@ -9,7 +9,7 @@ from download_utils import build_csv_filename, download_csv_button
 from dbs_page import render as render_dbs
 from sectores_page import render as render_sectores
 from financiamiento_page import render as render_financiamiento
-from data_utils import load_iati_dataset, standardise_recipient_countries
+from data_utils import optimise_dataframe_memory
 
 # Paleta unificada para los multilaterales según lineamientos IDS.
 MULTILATERAL_COLOR_MAP = {
@@ -111,16 +111,16 @@ def get_country_columns(dataframe: Optional[pd.DataFrame]) -> list[str]:
     ]
 
 
-@st.cache_data
+@st.cache_resource(show_spinner=False)
 def load_data():
     df_ids = pd.read_parquet('IDS.parquet')
     if 'SC3' in df_ids.columns:
         sc3_clean = df_ids['SC3'].astype(str).str.strip().str.lower()
         df_ids = df_ids[~sc3_clean.eq('private')]
-    return df_ids
+    return optimise_dataframe_memory(df_ids)
 
 
-@st.cache_data
+@st.cache_resource(show_spinner=False)
 def load_special_country_data():
     try:
         df_special = pd.read_parquet('IDS_CRI_DR.parquet')
@@ -129,7 +129,7 @@ def load_special_country_data():
     if 'SC3' in df_special.columns:
         sc3_clean = df_special['SC3'].astype(str).str.strip().str.lower()
         df_special = df_special[~sc3_clean.eq('private')]
-    return df_special
+    return optimise_dataframe_memory(df_special)
 
 
 df = load_data()
@@ -178,19 +178,6 @@ paginas_iati = ['Financiamiento para el desarrollo', 'Sectores']
 st.sidebar.radio('Ir a:', paginas_iati, key='pagina_iati', index=None, on_change=set_pagina_from_iati)
 
 pagina = st.session_state.get('pagina', st.session_state.get('pagina_ids', 'Deuda externa'))
-
-# Cargar datos IATI
-@st.cache_data
-def load_iati_data():
-    df = load_iati_dataset()
-    if df is None:
-        return None
-    df = standardise_recipient_countries(df)
-    df.rename(columns={"macro_sector": "macrosector"}, inplace=True)
-    return df
-
-df_iati = load_iati_data()
-
 
 if pagina == 'Deuda externa':
     st.title('Deuda externa')
@@ -306,7 +293,7 @@ if pagina == 'Deuda externa':
             ),
             title={'text': 'Millones USD', 'x': 0.5, 'xanchor': 'center'}
         )
-        st.plotly_chart(fig1, use_container_width=True)
+        st.plotly_chart(fig1, width="stretch")
         fig1_data = df_pais_agg[["Time", "SC3", pais, "valor_millones"]].rename(
             columns={"Time": "Anio", pais: pais, "valor_millones": "valor_millones_usd"}
         )
@@ -333,7 +320,7 @@ if pagina == 'Deuda externa':
         fig2.update_traces(
             hovertemplate="<b>Año:</b> %{x}<br><b>SC3:</b> %{fullData.name}<br><b>Porcentaje:</b> %{y:.1%}<extra></extra>"
         )
-        st.plotly_chart(fig2, use_container_width=True)
+        st.plotly_chart(fig2, width="stretch")
         fig2_data = df_pais_agg[["Time", "SC3", "proporcion"]].rename(
             columns={"Time": "Anio", "proporcion": "participacion"}
         )
@@ -422,7 +409,7 @@ elif pagina == 'Multilaterales':
             ),
             title={'text': 'Millones USD', 'x': 0.5, 'xanchor': 'center'}
         )
-        st.plotly_chart(fig1, use_container_width=True)
+        st.plotly_chart(fig1, width="stretch")
         fig1_data = df_pais_agg[["Time", "Multilateral", pais, "valor_millones"]].rename(
             columns={"Time": "Anio", pais: pais, "valor_millones": "valor_millones_usd"}
         )
@@ -450,7 +437,7 @@ elif pagina == 'Multilaterales':
         fig2.update_traces(
             hovertemplate="<b>Año:</b> %{x}<br><b>Multilateral:</b> %{fullData.name}<br><b>Porcentaje:</b> %{y:.1%}<extra></extra>"
         )
-        st.plotly_chart(fig2, use_container_width=True)
+        st.plotly_chart(fig2, width="stretch")
         fig2_data = df_pais_agg[["Time", "Multilateral", "proporcion"]].rename(
             columns={"Time": "Anio", "proporcion": "participacion"}
         )
@@ -510,7 +497,7 @@ elif pagina == 'Plazos y Tasas':
             fig_arg.update_xaxes(showgrid=False, tickangle=45)
             fig_arg.update_yaxes(showgrid=False)
             fig_arg.update_layout(title={'text': '', 'x': 0.5, 'xanchor': 'center'})
-            st.plotly_chart(fig_arg, use_container_width=True)
+            st.plotly_chart(fig_arg, width="stretch")
             download_csv_button(
                 df_arg_agg.rename(columns={"Time": "Anio", pais_arg: "valor"}),
                 build_csv_filename("plazos_tasas", multilateral, "argentina", sc2_label),
@@ -532,7 +519,7 @@ elif pagina == 'Plazos y Tasas':
                 fig_bolivia.update_xaxes(showgrid=False, tickangle=45)
                 fig_bolivia.update_yaxes(showgrid=False)
                 fig_bolivia.update_layout(title={'text': '', 'x': 0.5, 'xanchor': 'center'})
-                st.plotly_chart(fig_bolivia, use_container_width=True)
+                st.plotly_chart(fig_bolivia, width="stretch")
                 download_csv_button(
                     df_bolivia_agg.rename(columns={"Time": "Anio", bolivia_col: "valor"}),
                     build_csv_filename("plazos_tasas", multilateral, "bolivia", sc2_label),
@@ -560,7 +547,7 @@ elif pagina == 'Plazos y Tasas':
                 fig_brasil.update_xaxes(showgrid=False, tickangle=45)
                 fig_brasil.update_yaxes(showgrid=False)
                 fig_brasil.update_layout(title={'text': '', 'x': 0.5, 'xanchor': 'center'})
-                st.plotly_chart(fig_brasil, use_container_width=True)
+                st.plotly_chart(fig_brasil, width="stretch")
                 download_csv_button(
                     df_brasil_agg.rename(columns={"Time": "Anio", brasil_col: "valor"}),
                     build_csv_filename("plazos_tasas", multilateral, "brasil", sc2_label),
@@ -585,7 +572,7 @@ elif pagina == 'Plazos y Tasas':
                 fig_paraguay.update_xaxes(showgrid=False, tickangle=45)
                 fig_paraguay.update_yaxes(showgrid=False)
                 fig_paraguay.update_layout(title={'text': '', 'x': 0.5, 'xanchor': 'center'})
-                st.plotly_chart(fig_paraguay, use_container_width=True)
+                st.plotly_chart(fig_paraguay, width="stretch")
                 download_csv_button(
                     df_paraguay_agg.rename(columns={"Time": "Anio", paraguay_col: "valor"}),
                     build_csv_filename("plazos_tasas", multilateral, "paraguay", sc2_label),
@@ -650,7 +637,7 @@ elif pagina == 'Comprometido':
                     title={'text': 'Millones USD', 'x': 0.5, 'xanchor': 'center'},
                     showlegend=False
                 )
-                st.plotly_chart(fig_arg, use_container_width=True)
+                st.plotly_chart(fig_arg, width="stretch")
                 download_csv_button(
                     df_arg_agg.rename(
                         columns={"Time": "Anio", "valor_millones": "valor_millones_usd"}
@@ -691,7 +678,7 @@ elif pagina == 'Comprometido':
                     title={'text': 'Millones USD', 'x': 0.5, 'xanchor': 'center'},
                     showlegend=False
                 )
-                st.plotly_chart(fig_bol, use_container_width=True)
+                st.plotly_chart(fig_bol, width="stretch")
                 download_csv_button(
                     df_bol_agg.rename(
                         columns={"Time": "Anio", "valor_millones": "valor_millones_usd"}
@@ -735,7 +722,7 @@ elif pagina == 'Comprometido':
                     title={'text': 'Millones USD', 'x': 0.5, 'xanchor': 'center'},
                     showlegend=False
                 )
-                st.plotly_chart(fig_bra, use_container_width=True)
+                st.plotly_chart(fig_bra, width="stretch")
                 download_csv_button(
                     df_bra_agg.rename(
                         columns={"Time": "Anio", "valor_millones": "valor_millones_usd"}
@@ -776,7 +763,7 @@ elif pagina == 'Comprometido':
                     title={'text': 'Millones USD', 'x': 0.5, 'xanchor': 'center'},
                     showlegend=False
                 )
-                st.plotly_chart(fig_pry, use_container_width=True)
+                st.plotly_chart(fig_pry, width="stretch")
                 download_csv_button(
                     df_pry_agg.rename(
                         columns={"Time": "Anio", "valor_millones": "valor_millones_usd"}

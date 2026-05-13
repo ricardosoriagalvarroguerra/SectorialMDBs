@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
+from functools import lru_cache
 from typing import Iterable
 
 import pandas as pd
-from pandas.api.types import is_string_dtype
+from pandas.api.types import is_integer_dtype, is_object_dtype, is_string_dtype
 
 
 _IATI_DATASET_PATH = "BDDGLOBALMERGED_ACTUALIZADO.parquet"
@@ -51,11 +52,43 @@ def _clean_string_series(series: pd.Series) -> pd.Series:
     return series.str.strip()
 
 
-def load_iati_dataset(path: str = _IATI_DATASET_PATH) -> pd.DataFrame | None:
+def optimise_dataframe_memory(
+    df: pd.DataFrame,
+    *,
+    max_category_values: int = 128,
+    category_ratio: float = 0.5,
+) -> pd.DataFrame:
+    """Return ``df`` with lower-memory dtypes where the conversion is safe.
+
+    The app keeps dataframes cached between Streamlit reruns. Converting
+    low-cardinality text columns to categoricals and downcasting integer fields
+    lowers the resident memory without changing the values used in the charts.
+    """
+
+    for column in df.columns:
+        series = df[column]
+        if is_object_dtype(series) or is_string_dtype(series):
+            unique_values = series.nunique(dropna=True)
+            if unique_values == 0:
+                continue
+            if unique_values <= max_category_values and unique_values <= len(series) * category_ratio:
+                df[column] = series.astype("category")
+            continue
+
+        if is_integer_dtype(series):
+            df[column] = pd.to_numeric(series, downcast="integer")
+
+    return df
+
+
+@lru_cache(maxsize=4)
+def load_iati_dataset(
+    path: str = _IATI_DATASET_PATH, columns: tuple[str, ...] | None = None
+) -> pd.DataFrame | None:
     """Return the merged IATI dataset with manual data corrections applied."""
 
     try:
-        df = pd.read_parquet(path)
+        df = pd.read_parquet(path, columns=list(columns) if columns else None)
     except Exception:
         return None
 
@@ -70,7 +103,7 @@ def load_iati_dataset(path: str = _IATI_DATASET_PATH) -> pd.DataFrame | None:
                 df.loc[mask, "value_usd"] = corrected_value
         if _IATI_EXCLUDED_IDENTIFIERS:
             df = df[~df["iatiidentifier"].isin(_IATI_EXCLUDED_IDENTIFIERS)]
-    return df
+    return optimise_dataframe_memory(df)
 
 
 def standardise_recipient_countries(
@@ -97,4 +130,3 @@ def standardise_recipient_countries(
         cleaned = _clean_string_series(df[column])
         df[column] = cleaned.replace(_COUNTRY_STANDARDISATION_MAP)
     return df
-

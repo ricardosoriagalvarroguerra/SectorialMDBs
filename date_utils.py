@@ -38,14 +38,15 @@ def parse_transaction_dates(series: pd.Series) -> pd.Series:
     numeric_non_na = numeric.dropna()
 
     if numeric_non_na.empty:
-        return pd.to_datetime(series, errors="coerce", infer_datetime_format=True)
+        return pd.to_datetime(series, errors="coerce")
 
     # Years stored as integers (e.g. 2014) should map to the first day of that
     # year instead of the Unix epoch.
     if numeric_non_na.between(_MIN_VALID_YEAR, _MAX_VALID_YEAR).all():
-        return pd.to_datetime(
+        parsed_years = pd.to_datetime(
             numeric.astype("Int64").astype(str) + "-01-01", errors="coerce"
         )
+        return parsed_years.fillna(pd.to_datetime(series, errors="coerce"))
 
     max_value = float(numeric_non_na.max())
 
@@ -67,7 +68,7 @@ def parse_transaction_dates(series: pd.Series) -> pd.Series:
                 return converted
 
     # As a last resort defer to pandas' parser.
-    return pd.to_datetime(series, errors="coerce", infer_datetime_format=True)
+    return pd.to_datetime(series, errors="coerce")
 
 
 def extract_transaction_years(series: pd.Series) -> pd.Series:
