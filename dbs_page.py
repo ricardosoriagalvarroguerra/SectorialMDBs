@@ -9,7 +9,11 @@ import streamlit as st
 from pandas.api.types import is_datetime64_any_dtype, is_datetime64tz_dtype
 
 from date_utils import parse_transaction_dates
-from data_utils import IATI_SNAPSHOTS
+
+IATI_SNAPSHOTS = {
+    "Snapshot noviembre 2025": "BDDGLOBALMERGED_ACTUALIZADO.parquet",
+    "Snapshot mayo 2026": "BDDGLOBALMERGED_ACTUALIZADO_V2.parquet",
+}
 
 REPO_ROOT = Path(__file__).resolve().parent
 

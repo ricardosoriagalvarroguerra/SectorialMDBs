@@ -9,7 +9,12 @@ from download_utils import build_csv_filename, download_csv_button
 from dbs_page import render as render_dbs
 from sectores_page import render as render_sectores
 from financiamiento_page import render as render_financiamiento
-from data_utils import IATI_SNAPSHOTS, optimise_dataframe_memory
+from data_utils import optimise_dataframe_memory
+
+IATI_SNAPSHOTS = {
+    "Snapshot noviembre 2025": "BDDGLOBALMERGED_ACTUALIZADO.parquet",
+    "Snapshot mayo 2026": "BDDGLOBALMERGED_ACTUALIZADO_V2.parquet",
+}
 
 # Paleta unificada para los multilaterales según lineamientos IDS.
 MULTILATERAL_COLOR_MAP = {
