@@ -39,8 +39,9 @@ MACRO_COLOR_MAP = {
 
 
 @st.cache_resource(show_spinner=False)
-def load_sectores() -> pd.DataFrame | None:
+def load_sectores(snapshot_path: str) -> pd.DataFrame | None:
     df = load_iati_dataset(
+        path=snapshot_path,
         columns=(
             "iatiidentifier",
             "transactiondate_isodate",
@@ -65,8 +66,9 @@ def load_sectores() -> pd.DataFrame | None:
     df["month"] = df["transactiondate_isodate"].dt.to_period("M").astype(str)
     return df
 
-def render():
-    df = load_sectores()
+def render(snapshot_path: str, snapshot_label: str):
+    st.caption(f"Snapshot: {snapshot_label}")
+    df = load_sectores(snapshot_path)
     if df is None:
         st.info("No se pudieron cargar los datos.")
         return
@@ -76,12 +78,12 @@ def render():
     else:
         fp_min = fp_max = 0
     raw_min_year, raw_max_year = int(df["year"].min()), int(df["year"].max())
-    desired_min_year, desired_max_year = 2005, 2024
+    desired_min_year, desired_max_year = 2005, raw_max_year
     min_year = max(desired_min_year, raw_min_year)
     max_year = min(desired_max_year, raw_max_year)
     if min_year > max_year:
         st.warning(
-            "No hay datos disponibles entre los años 2005 y 2024. "
+            f"No hay datos disponibles desde {desired_min_year}. "
             "Mostrando el rango disponible en la fuente de datos."
         )
         min_year, max_year = raw_min_year, raw_max_year

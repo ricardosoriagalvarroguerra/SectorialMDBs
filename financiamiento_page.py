@@ -10,8 +10,9 @@ from data_utils import load_iati_dataset, standardise_recipient_countries
 
 
 @st.cache_resource(show_spinner=False)
-def load_financiamiento() -> pd.DataFrame | None:
+def load_financiamiento(snapshot_path: str) -> pd.DataFrame | None:
     df = load_iati_dataset(
+        path=snapshot_path,
         columns=(
             "iatiidentifier",
             "transactiondate_isodate",
@@ -30,10 +31,11 @@ def load_financiamiento() -> pd.DataFrame | None:
     return df
 
 
-def render() -> None:
+def render(snapshot_path: str, snapshot_label: str) -> None:
     st.title("Financiamiento para el desarrollo")
+    st.caption(f"Snapshot: {snapshot_label}")
 
-    df = load_financiamiento()
+    df = load_financiamiento(snapshot_path)
     if df is None or df.empty:
         st.info("No se pudieron cargar los datos.")
         return
@@ -51,12 +53,12 @@ def render() -> None:
 
     raw_min_year = int(df["transaction_year"].min())
     raw_max_year = int(df["transaction_year"].max())
-    desired_min_year, desired_max_year = 2014, 2024
+    desired_min_year, desired_max_year = 2014, raw_max_year
     min_year = max(desired_min_year, raw_min_year)
     max_year = min(desired_max_year, raw_max_year)
     if min_year > max_year:
         st.warning(
-            "No hay datos disponibles entre los años 2005 y 2024. "
+            f"No hay datos disponibles desde {desired_min_year}. "
             "Mostrando el rango disponible en la fuente de datos."
         )
         min_year, max_year = raw_min_year, raw_max_year

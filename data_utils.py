@@ -10,6 +10,11 @@ from pandas.api.types import is_integer_dtype, is_object_dtype, is_string_dtype
 
 
 _IATI_DATASET_PATH = "BDDGLOBALMERGED_ACTUALIZADO.parquet"
+_IATI_DATASET_V2_PATH = "BDDGLOBALMERGED_ACTUALIZADO_V2.parquet"
+IATI_SNAPSHOTS = {
+    "Snapshot noviembre 2025": _IATI_DATASET_PATH,
+    "Snapshot mayo 2026": _IATI_DATASET_V2_PATH,
+}
 _IATI_MANUAL_VALUE_FIXES = {"XM-DAC-46027-PY028": 354_200_000}
 _IATI_EXCLUDED_IDENTIFIERS = {
     "ID_CAF-5",

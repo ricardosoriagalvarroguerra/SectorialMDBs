@@ -9,7 +9,7 @@ from download_utils import build_csv_filename, download_csv_button
 from dbs_page import render as render_dbs
 from sectores_page import render as render_sectores
 from financiamiento_page import render as render_financiamiento
-from data_utils import optimise_dataframe_memory
+from data_utils import IATI_SNAPSHOTS, optimise_dataframe_memory
 
 # Paleta unificada para los multilaterales según lineamientos IDS.
 MULTILATERAL_COLOR_MAP = {
@@ -173,6 +173,13 @@ st.sidebar.radio('Ir a:', paginas_ids, key='pagina_ids', on_change=set_pagina_fr
 
 st.sidebar.divider()
 st.sidebar.markdown('**IATI**')
+selected_iati_snapshot = st.sidebar.selectbox(
+    'Snapshot',
+    options=list(IATI_SNAPSHOTS.keys()),
+    index=0,
+    key='iati_snapshot',
+)
+iati_snapshot_path = IATI_SNAPSHOTS[selected_iati_snapshot]
 
 paginas_iati = ['Financiamiento para el desarrollo', 'Sectores']
 st.sidebar.radio('Ir a:', paginas_iati, key='pagina_iati', index=None, on_change=set_pagina_from_iati)
@@ -805,6 +812,6 @@ elif pagina == 'DBs':
     render_dbs()
 
 elif pagina == 'Financiamiento para el desarrollo':
-    render_financiamiento()
+    render_financiamiento(iati_snapshot_path, selected_iati_snapshot)
 elif pagina == 'Sectores':
-    render_sectores()
+    render_sectores(iati_snapshot_path, selected_iati_snapshot)
